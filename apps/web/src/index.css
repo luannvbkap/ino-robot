@@ -1,11 +1,35 @@
 @import 'tailwindcss';
 
+/* Bảng màu lấy nguyên từ thiết kế trong giao-dien-mau/ */
 @theme {
-  --color-ino-50: oklch(0.97 0.02 250);
-  --color-ino-100: oklch(0.94 0.04 250);
-  --color-ino-500: oklch(0.58 0.18 255);
-  --color-ino-600: oklch(0.52 0.19 255);
-  --color-ino-700: oklch(0.45 0.18 255);
+  --color-page: #f9f9ff;
+  --color-ink: #111c2d;
+  --color-ink-2: #434655;
+  --color-ink-3: #737686;
+
+  --color-brand: #004ac6;
+  --color-brand-hover: #2563eb;
+  --color-brand-50: #f0f3ff;
+  --color-brand-100: #e7eeff;
+  --color-brand-200: #dee8ff;
+  --color-brand-300: #d8e3fb;
+  --color-brand-400: #b4c5ff;
+  --color-brand-ring: #dbe1ff;
+  --color-brand-deep: #00174b;
+
+  --color-teal: #006a61;
+  --color-teal-ink: #006f66;
+  --color-teal-light: #86f2e4;
+  --color-teal-glow: #89f5e7;
+
+  --color-danger: #ba1a1a;
+  --color-danger-bg: #ffdad6;
+  --color-danger-ink: #93000a;
+
+  --color-grape: #632ecd;
+  --color-amber-block: #f59e0b;
+
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 html,
@@ -16,7 +40,54 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  background: oklch(0.98 0.005 250);
-  color: oklch(0.25 0.02 250);
+  font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-page);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-brand-ring);
+  color: var(--color-brand-deep);
+}
+
+/* Bộ biểu tượng Material Symbols */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Thanh cuộn mảnh cho các khung của trình soạn thảo */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* Nền chấm cho vùng lắp khối lệnh */
+.canvas-dots {
+  background-color: #f5f8ff;
+  background-image: radial-gradient(#94a3b8 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
 }

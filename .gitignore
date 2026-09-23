@@ -12,6 +12,9 @@ build/
 # Prisma
 apps/api/prisma/migrations/dev.db*
 
+# mã giao diện mẫu từ Google Stitch - chỉ để tham khảo, không thuộc sản phẩm
+giao-dien-mau/
+
 # tài liệu nội bộ - KHÔNG đưa lên GitHub
 # (ước tính thời gian, nhân lực, phân tích rủi ro pháp lý)
 de-xuat/
@@ -25,3 +28,5 @@ PTTK-*.md
 .idea/
 .DS_Store
 Thumbs.db
+
+giao-dien-mau

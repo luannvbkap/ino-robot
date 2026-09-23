@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Bot } from 'lucide-react';
 
 import { api, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { Alert, Button, Field } from '@/components/ui';
+import { Button, Card, ErrorBanner, Field } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { Mascot } from '@/components/Logo';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -35,51 +36,90 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-8 shadow-sm">
-        <div className="mb-2 flex flex-col items-center gap-2">
-          <Bot className="size-10 text-ino-600" />
-          <h1 className="text-xl font-semibold">Tạo tài khoản</h1>
+    <div className="flex min-h-full flex-col justify-between">
+      <header className="z-50 w-full bg-white/80 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-xl">
+        <div className="flex h-14 items-center px-6 md:px-12">
+          <span className="flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-white shadow-sm">
+              <Icon name="smart_toy" />
+            </span>
+            <span className="text-[16px] font-semibold tracking-tight">INO Robot</span>
+            <span className="rounded bg-brand-200 px-1.5 py-0.5 text-[12px] font-semibold tracking-wide text-brand uppercase">
+              Studio
+            </span>
+          </span>
         </div>
+      </header>
 
-        {error && <Alert>{error}</Alert>}
+      <main className="relative flex w-full flex-1 flex-col items-center justify-center px-4 py-8">
+        <div className="pointer-events-none absolute top-1/4 -z-10 size-96 rounded-full bg-brand-400/20 blur-3xl" />
 
-        <Field
-          label="Tên hiển thị"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          required
-          maxLength={60}
-        />
-        <Field
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
-        <Field
-          label="Mật khẩu"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          autoComplete="new-password"
-        />
+        <div className="flex w-full max-w-[430px] flex-col items-center">
+          <div className="mb-6 flex flex-col items-center text-center">
+            <div className="flex size-24 items-center justify-center rounded-2xl bg-brand-50 p-2 shadow-sm">
+              <Mascot size={76} />
+            </div>
+            <h1 className="mt-3 mb-1 text-[28px] font-bold tracking-tight">Tạo tài khoản</h1>
+            <p className="max-w-[340px] text-[15px] leading-relaxed text-ink-2">
+              Bắt đầu lập trình con robot đầu tiên của em
+            </p>
+          </div>
 
-        <Button type="submit" disabled={busy} className="w-full">
-          {busy ? 'Đang tạo…' : 'Đăng ký'}
-        </Button>
+          <Card className="w-full p-6 shadow-lg md:p-8">
+            {error && <div className="mb-5"><ErrorBanner title="Không tạo được tài khoản">{error}</ErrorBanner></div>}
 
-        <p className="text-center text-sm text-slate-500">
-          Đã có tài khoản?{' '}
-          <Link to="/dang-nhap" className="font-medium text-ino-600 hover:underline">
-            Đăng nhập
-          </Link>
-        </p>
-      </form>
+            <form onSubmit={onSubmit} className="flex flex-col gap-4">
+              <Field
+                label="Tên hiển thị"
+                icon="person"
+                placeholder="Nguyễn Văn A"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                maxLength={60}
+              />
+              <Field
+                label="Email học tập"
+                type="email"
+                icon="alternate_email"
+                placeholder="hocsinh@stemrobot.vn"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+              <Field
+                label="Mật khẩu"
+                labelRight={<span className="text-[11px] font-normal text-ink-2">tối thiểu 6 ký tự</span>}
+                type="password"
+                icon="lock"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete="new-password"
+              />
+
+              <Button type="submit" size="lg" disabled={busy} className="mt-2 w-full">
+                <span>{busy ? 'Đang tạo…' : 'Đăng ký'}</span>
+                {!busy && <Icon name="arrow_forward" />}
+              </Button>
+            </form>
+
+            <div className="mt-6 flex items-center justify-center gap-1.5 border-t border-brand-100 pt-4 text-xs">
+              <span className="text-ink-2">Đã có tài khoản?</span>
+              <Link to="/dang-nhap" className="font-semibold text-brand hover:underline">
+                Đăng nhập
+              </Link>
+            </div>
+          </Card>
+        </div>
+      </main>
+
+      <footer className="w-full border-t border-slate-100/60 py-4 text-center text-[12px] text-ink-2">
+        © {new Date().getFullYear()} INO Robot Studio. Hệ thống giáo dục STEM thông minh.
+      </footer>
     </div>
   );
 }
