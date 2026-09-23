@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  displayName  String
+  role         Role      @default(STUDENT)
+  createdAt    DateTime  @default(now())
+
+  projects     Project[]
+  sessions     Session[]
+}
+
+model Project {
+  id         String   @id @default(uuid())
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name       String
+  /// Nội dung khối lệnh — định dạng JSON của Blockly
+  workspace  Json     @default("{}")
+  robotId    String   @default("ino-bot-v1")
+  scenarioId String   @default("line-follow")
+  /// Ảnh thu nhỏ dạng data URL
+  thumbnail  String?
+  /// true = bài mẫu do INO cung cấp
+  isTemplate Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
+  @@index([isTemplate])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}

@@ -1,0 +1,19 @@
+{
+  "name": "ino-app",
+  "private": true,
+  "packageManager": "pnpm@12.5.1",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @ino/api exec prisma migrate dev",
+    "db:studio": "pnpm --filter @ino/api exec prisma studio",
+    "db:seed": "pnpm --filter @ino/api run seed"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.2",
+    "typescript": "^5.9.0"
+  }
+}

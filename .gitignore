@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+.turbo/
+*.log
+
+# biến môi trường - KHÔNG commit
+.env
+.env.local
+!.env.example
+
+# Prisma
+apps/api/prisma/migrations/dev.db*
+
+# tài liệu nội bộ - KHÔNG đưa lên GitHub
+# (ước tính thời gian, nhân lực, phân tích rủi ro pháp lý)
+de-xuat/
+PTTK-*.md
+*.docx
+*.pptx
+*.xlsx
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

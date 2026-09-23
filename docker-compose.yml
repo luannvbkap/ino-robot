@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ino-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ino
+      POSTGRES_PASSWORD: ino
+      POSTGRES_DB: ino
+    ports:
+      # 5433 ở máy bạn -> 5432 trong container, tránh đụng Postgres cài sẵn
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ino -d ino"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
