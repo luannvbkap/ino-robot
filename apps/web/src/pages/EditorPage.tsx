@@ -9,6 +9,9 @@ import { Button, Placeholder, Spinner, useToast } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Mascot } from '@/components/Logo';
 import { ResizeHandle, clamp, usePersistedLayout } from '@/components/Resizer';
+import { BlocklyCanvas, type WorkspaceChange } from '@/features/blockly/BlocklyCanvas';
+import { CodePanel, type CodeTheme } from '@/features/blockly/CodePanel';
+import { BlocklyDialogs } from '@/features/blockly/BlocklyDialogs';
 
 /** Nhóm khối lệnh — màu và biểu tượng lấy từ thiết kế */
 const CATEGORIES = [
@@ -18,31 +21,22 @@ const CATEGORIES = [
   { id: 'logic', label: 'Logic', icon: 'alt_route', chip: 'bg-emerald-600/10 text-emerald-700', dot: 'bg-emerald-600' },
   { id: 'math', label: 'Toán', icon: 'calculate', chip: 'bg-grape/10 text-grape', dot: 'bg-grape' },
   { id: 'variables', label: 'Biến số', icon: 'data_object', chip: 'bg-orange-500/10 text-orange-600', dot: 'bg-orange-500' },
+  { id: 'serial', label: 'Hiển thị', icon: 'terminal', chip: 'bg-slate-600/10 text-slate-600', dot: 'bg-slate-600' },
 ] as const;
-
-const CATEGORY_TITLES: Record<string, string> = {
-  motion: 'Khối Chuyển Động',
-  sensors: 'Khối Cảm Biến',
-  control: 'Khối Điều Khiển',
-  logic: 'Khối Logic',
-  math: 'Khối Toán Học',
-  variables: 'Biến Số',
-};
 
 /** Kích thước mặc định của các khung, tính bằng pixel */
 const DEFAULTS = {
-  tray: 204,
   right: 430,
-  /** phần trăm chiều cao dành cho khung mô phỏng 3D */
-  sim: 58,
   toolsOpen: true,
   rightOpen: true,
+  /** true = cột phải hiện mã C++, false = cột phải hiện robot ảo */
+  codeOpen: true,
+  /** true = khung mã nguồn nền tối */
+  codeDark: false,
 };
 
 const LIMITS = {
-  tray: [150, 400],
   right: [300, 820],
-  sim: [22, 85],
 } as const;
 
 type SaveState = 'idle' | 'saving' | 'saved';
@@ -61,9 +55,14 @@ export default function EditorPage() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isFull, toggle: toggleFullscreen } = useFullscreen();
 
+  /** Nội dung khối lệnh và mã C++ sinh ra, cập nhật mỗi khi kéo thả */
+  const [cpp, setCpp] = useState('');
+  const [blockCount, setBlockCount] = useState(0);
+  const wsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firstChange = useRef(true);
+
   /** Bố cục do người dùng kéo chỉnh, nhớ lại ở lần mở sau */
   const [layout, setLayout] = usePersistedLayout('ino.editor.layout', DEFAULTS);
-  const rightRef = useRef<HTMLDivElement | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['project', id],
@@ -92,6 +91,33 @@ export default function EditorPage() {
     }, 800);
   }
 
+  /**
+   * Lưu khối lệnh — chờ 2 giây sau khi ngừng thao tác rồi mới gửi lên máy chủ,
+   * để một lần kéo thả không bắn hàng chục request.
+   */
+  function onWorkspaceChange({ workspace, cpp: code, blockCount: n }: WorkspaceChange) {
+    setCpp(code);
+    setBlockCount(n);
+
+    // Lần đầu là lúc vừa nạp bài làm lên, chưa có gì thay đổi để lưu
+    if (firstChange.current) {
+      firstChange.current = false;
+      return;
+    }
+
+    if (wsTimer.current) clearTimeout(wsTimer.current);
+    setSave('saving');
+    wsTimer.current = setTimeout(async () => {
+      try {
+        await api.projects.update(id, { workspace });
+        setSave('saved');
+      } catch {
+        setSave('idle');
+        notify('Không lưu được bài làm, kiểm tra lại kết nối');
+      }
+    }, 2000);
+  }
+
   if (isLoading) return <Spinner />;
   if (error || !data) {
     return (
@@ -105,10 +131,10 @@ export default function EditorPage() {
   }
 
   const scenarioLabel = data.project.scenarioId === 'line-follow' ? 'Dò vạch kẻ' : 'Tránh vật cản';
-  const category = CATEGORIES.find((c) => c.id === activeCategory)!;
 
   return (
     <div className="flex h-full flex-col overflow-hidden select-none">
+      <BlocklyDialogs />
       {/* ------- Thanh điều hướng toàn cục — ẩn khi vào toàn màn hình ------- */}
       {!isFull && (
         <header className="z-40 flex h-14 shrink-0 items-center justify-between border-b border-brand-100 bg-white/95 px-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-md">
@@ -271,6 +297,16 @@ export default function EditorPage() {
               {/* Nhóm nút bố cục — luôn nằm ở đây để khi ẩn thanh trên vẫn bấm được */}
               <span className="flex items-center gap-1 border-l border-brand-100 pl-2">
                 <button
+                  onClick={() => setLayout((l) => ({ ...l, codeOpen: !l.codeOpen }))}
+                  title={layout.codeOpen ? 'Ẩn mã nguồn, xem robot ảo' : 'Xem mã C++ toàn cột'}
+                  className={`flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors ${
+                    layout.codeOpen ? 'bg-brand-100 text-brand' : 'text-ink-2 hover:bg-brand-50'
+                  }`}
+                >
+                  <Icon name="code" />
+                </button>
+
+                <button
                   onClick={() => setLayout((l) => ({ ...l, rightOpen: !l.rightOpen }))}
                   title={
                     layout.rightOpen ? 'Ẩn khung mô phỏng và mã nguồn' : 'Hiện khung mô phỏng và mã nguồn'
@@ -322,73 +358,18 @@ export default function EditorPage() {
               })}
             </div>
 
-            {/* Ngăn kéo khối lệnh — kéo rộng hẹp được */}
-            <div
-              className="custom-scrollbar z-10 flex shrink-0 flex-col overflow-y-auto border-r border-brand-100 bg-white p-3"
-              style={{ width: layout.tray }}
-            >
-              <div className="flex items-center justify-between border-b border-brand-50 pb-1">
-                <span className="truncate text-[11px] font-bold tracking-wider text-ink-2 uppercase">
-                  {CATEGORY_TITLES[category.id]}
-                </span>
-                <span className={`size-2 shrink-0 rounded-full ${category.dot}`} />
+            {/* Vùng lắp khối lệnh — Blockly, ngăn kéo nằm luôn bên trong */}
+            <div className="ino-blockly relative flex min-w-0 flex-1 flex-col overflow-hidden">
+              <div className="pointer-events-none absolute top-3 right-3 z-10 flex items-center gap-2 rounded-full border border-brand-100 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur">
+                <Icon name="extension" size={16} className="text-brand" />
+                <span className="text-[12px] font-semibold text-ink-2">{blockCount} khối lệnh</span>
               </div>
 
-              <div className="flex-1">
-                <Placeholder icon="extension" title="Ngăn kéo khối lệnh" note="Mốc M1 — Blockly" />
-              </div>
-
-              <div className="mt-auto flex items-center gap-2 rounded-xl bg-brand-50 p-2 text-[11px] leading-tight text-ink-2">
-                <Icon name="touch_app" size={18} className="shrink-0 text-brand" />
-                <span>Bấm vào khối để thêm vào chương trình hoặc chỉnh sửa thông số</span>
-              </div>
-            </div>
-
-            <ResizeHandle
-              axis="x"
-              title="Kéo để chỉnh rộng ngăn kéo khối lệnh · Bấm đúp để đặt lại"
-              onResize={(d) => setLayout((l) => ({ ...l, tray: clamp(l.tray + d, ...LIMITS.tray) }))}
-              onReset={() => setLayout((l) => ({ ...l, tray: DEFAULTS.tray }))}
-            />
-
-            {/* Vùng lắp khối lệnh */}
-            <div className="canvas-dots relative flex min-w-0 flex-1 flex-col overflow-hidden">
-              <div className="absolute top-4 left-4 z-10 flex items-center gap-2 rounded-full border border-brand-100 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur">
-                <span className="size-2.5 rounded-full bg-ink-3" />
-                <span className="text-[12px] font-semibold text-ink-2">Chưa có chương trình nào</span>
-              </div>
-
-              <Placeholder
-                icon="drag_indicator"
-                title="Vùng lắp khối lệnh"
-                note="Mốc M1 — kéo thả khối, sinh mã C++"
+              <BlocklyCanvas
+                initial={data.project.workspace}
+                categoryIndex={CATEGORIES.findIndex((c) => c.id === activeCategory)}
+                onChange={onWorkspaceChange}
               />
-
-              <div className="absolute right-4 bottom-4 z-20 flex items-center rounded-xl border border-brand-100 bg-white p-1 shadow-md">
-                <button
-                  onClick={() => setZoom((z) => Math.max(60, z - 10))}
-                  title="Thu nhỏ"
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-brand-50"
-                >
-                  <Icon name="remove" size={18} />
-                </button>
-                <span className="px-2 font-mono text-[12px] font-semibold text-ink-3">{zoom}%</span>
-                <button
-                  onClick={() => setZoom((z) => Math.min(150, z + 10))}
-                  title="Phóng to"
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-brand-50"
-                >
-                  <Icon name="add" size={18} />
-                </button>
-                <span className="mx-1 h-5 w-px bg-brand-100" />
-                <button
-                  onClick={() => setZoom(100)}
-                  title="Đặt lại tỉ lệ 100%"
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-brand-50"
-                >
-                  <Icon name="filter_center_focus" size={18} />
-                </button>
-              </div>
             </div>
 
             {/* Mô phỏng + mã nguồn — kéo rộng hẹp được, ẩn được */}
@@ -401,60 +382,44 @@ export default function EditorPage() {
                   onReset={() => setLayout((l) => ({ ...l, right: DEFAULTS.right }))}
                 />
 
+                {/* Cột phải chỉ có một trong hai: mã nguồn HOẶC robot ảo */}
                 <aside
-                  ref={rightRef}
-                  className="z-20 flex shrink-0 flex-col overflow-hidden border-l border-slate-700 bg-[#263143]"
+                  className={`z-20 flex shrink-0 flex-col overflow-hidden border-l ${
+                    layout.codeOpen && layout.codeDark
+                      ? 'border-slate-700 bg-[#0c1322]'
+                      : 'border-brand-100 bg-white'
+                  }`}
                   style={{ width: layout.right }}
                 >
-                  <div
-                    className="relative flex flex-col overflow-hidden bg-gradient-to-b from-brand-50 via-brand-100 to-brand-200"
-                    style={{ height: `${layout.sim}%` }}
-                  >
-                    <div className="absolute top-3 left-3 z-30 flex items-center rounded-lg border border-brand-100 bg-white/95 p-0.5 shadow-sm backdrop-blur">
-                      {(['3d', '2d'] as const).map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => setPerspective(p)}
-                          className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
-                            perspective === p ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
-                          }`}
-                        >
-                          {p === '3d' ? 'Góc nhìn 3D' : 'Góc nhìn trên (2D)'}
-                        </button>
-                      ))}
-                    </div>
-
-                    <Placeholder
-                      icon="view_in_ar"
-                      title="Robot ảo 3D"
-                      note="Mốc M3 — Three.js · Mốc M4 — cảm biến ảo"
+                  {layout.codeOpen ? (
+                    <CodePanel
+                      code={cpp}
+                      theme={(layout.codeDark ? 'dark' : 'light') as CodeTheme}
+                      onToggleTheme={() => setLayout((l) => ({ ...l, codeDark: !l.codeDark }))}
                     />
-                  </div>
+                  ) : (
+                    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-brand-50 via-brand-100 to-brand-200">
+                      <div className="absolute top-3 left-3 z-30 flex items-center rounded-lg border border-brand-100 bg-white/95 p-0.5 shadow-sm backdrop-blur">
+                        {(['3d', '2d'] as const).map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setPerspective(p)}
+                            className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
+                              perspective === p ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                            }`}
+                          >
+                            {p === '3d' ? 'Góc nhìn 3D' : 'Góc nhìn trên (2D)'}
+                          </button>
+                        ))}
+                      </div>
 
-                  <ResizeHandle
-                    axis="y"
-                    title="Kéo để chia lại khung mô phỏng và mã nguồn · Bấm đúp để đặt lại"
-                    onResize={(d) => {
-                      const h = rightRef.current?.clientHeight ?? 600;
-                      setLayout((l) => ({ ...l, sim: clamp(l.sim + (d / h) * 100, ...LIMITS.sim) }));
-                    }}
-                    onReset={() => setLayout((l) => ({ ...l, sim: DEFAULTS.sim }))}
-                  />
-
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0c1322] text-slate-200">
-                    <div className="flex h-10 shrink-0 items-center border-b border-slate-800 bg-[#080d18] px-3">
-                      <span className="flex items-center gap-1.5 rounded-t-md border-t-2 border-brand bg-[#0c1322] px-3 py-1 text-[12px] font-bold text-brand-400">
-                        <Icon name="code" size={15} />
-                        Mã C++ (Arduino)
-                      </span>
+                      <Placeholder
+                        icon="view_in_ar"
+                        title="Robot ảo 3D"
+                        note="Mốc M3 — Three.js · Mốc M4 — cảm biến ảo"
+                      />
                     </div>
-                    <Placeholder
-                      dark
-                      icon="terminal"
-                      title="Mã nguồn sinh ra từ khối lệnh"
-                      note="Mốc M1 — bộ sinh mã"
-                    />
-                  </div>
+                  )}
                 </aside>
               </>
             ) : (

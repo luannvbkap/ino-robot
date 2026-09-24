@@ -35,6 +35,8 @@ model Project {
   workspace  Json     @default("{}")
   robotId    String   @default("ino-bot-v1")
   scenarioId String   @default("line-follow")
+  /// Số khối lệnh, máy chủ tự đếm lại mỗi lần lưu
+  blockCount Int      @default(0)
   /// Ảnh thu nhỏ dạng data URL
   thumbnail  String?
   /// true = bài mẫu do INO cung cấp

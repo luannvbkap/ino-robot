@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { createProjectSchema, updateProjectSchema, MAX_WORKSPACE_BYTES } from '@ino/shared';
+import {
+  countBlocks,
+  createProjectSchema,
+  updateProjectSchema,
+  MAX_WORKSPACE_BYTES,
+} from '@ino/shared';
 
 const summarySelect = {
   id: true,
@@ -9,6 +14,7 @@ const summarySelect = {
   scenarioId: true,
   thumbnail: true,
   isTemplate: true,
+  blockCount: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.ProjectSelect;
@@ -93,7 +99,11 @@ export default async function projectRoutes(app: FastifyInstance) {
 
     const data: Prisma.ProjectUpdateInput = {};
     if (parsed.data.name !== undefined) data.name = parsed.data.name.trim();
-    if (parsed.data.workspace !== undefined) data.workspace = parsed.data.workspace as Prisma.InputJsonValue;
+    if (parsed.data.workspace !== undefined) {
+      data.workspace = parsed.data.workspace as Prisma.InputJsonValue;
+      // Tự đếm ở máy chủ, không tin số do trình duyệt gửi lên
+      data.blockCount = countBlocks(parsed.data.workspace);
+    }
     if (parsed.data.robotId !== undefined) data.robotId = parsed.data.robotId;
     if (parsed.data.scenarioId !== undefined) data.scenarioId = parsed.data.scenarioId;
     if (parsed.data.thumbnail !== undefined) data.thumbnail = parsed.data.thumbnail;
@@ -132,6 +142,7 @@ export default async function projectRoutes(app: FastifyInstance) {
         ownerId: req.user.sub,
         name: `${source.name} (bản sao)`,
         workspace: source.workspace as Prisma.InputJsonValue,
+        blockCount: source.blockCount,
         robotId: source.robotId,
         scenarioId: source.scenarioId,
         thumbnail: source.thumbnail,

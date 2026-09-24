@@ -81,8 +81,17 @@ config/
 | Mốc | Nội dung | Trạng thái |
 |---|---|---|
 | M0 | Khung dự án, đăng nhập, CRUD bài làm | ✅ Xong |
-| M1 | Blockly, bộ khối lệnh, tự động lưu, sinh mã C++ | Chưa làm |
+| M1 | Blockly, 38 khối lệnh, tự động lưu, sinh mã C++ | ✅ Xong |
 | M2 | Chạy chương trình từng bước, tô sáng khối | Chưa làm |
 | M3 | Viewport 3D, robot di chuyển | Chưa làm |
 | M4 | Cảm biến ảo, hai kịch bản | Chưa làm |
 | M5 | Bài mẫu, hoàn thiện, triển khai | Chưa làm |
+
+### Việc cố ý để lại
+
+- **Chọn kịch bản khi tạo bài làm** — hiện mọi bài đều mặc định "Dò vạch kẻ" và
+  không có chỗ nào đổi, nên thẻ bài làm nào cũng dùng chung một hình minh hoạ.
+  Gộp vào **M4** cùng phần cảm biến và sa bàn.
+- **Ảnh chụp thật trên thẻ bài làm** — trường `thumbnail` đã có trong database,
+  chờ **M3** có mô phỏng rồi chụp màn hình workspace thay hình vẽ sẵn.
+- **Màu phụ của thương hiệu** — cần hỏi INO đã có bộ màu chưa trước khi chọn.

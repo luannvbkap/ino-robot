@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, Ref } from 'react';
 import { Icon } from './Icon';
 
 /* ------------------------------- Nút bấm ------------------------------- */
@@ -16,9 +16,9 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
-  sm: 'h-8 px-2.5 text-[12px] rounded-lg gap-1.5',
-  md: 'h-10 px-4 text-[13px] rounded-xl gap-2',
-  lg: 'h-12 px-6 text-[15px] rounded-xl gap-2',
+  sm: 'h-8 px-2.5 text-[12px] rounded-md gap-1.5',
+  md: 'h-10 px-4 text-[13px] rounded-lg gap-2',
+  lg: 'h-11 px-5 text-[14px] rounded-lg gap-2',
 };
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size };
@@ -40,6 +40,8 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
   icon?: string;
   trailing?: ReactNode;
   invalid?: boolean;
+  /** React 19 cho phép nhận ref như một prop thường */
+  ref?: Ref<HTMLInputElement>;
 };
 
 export function Field({
@@ -68,7 +70,7 @@ export function Field({
         )}
         <input
           {...props}
-          className={`w-full rounded-xl py-2.5 text-[14px] outline-none transition-all placeholder:text-ink-3 ${
+          className={`w-full rounded-lg py-2.5 text-[14px] outline-none transition-all placeholder:text-ink-3 ${
             icon ? 'pl-11' : 'pl-4'
           } ${trailing ? 'pr-11' : 'pr-4'} ${
             invalid
@@ -85,9 +87,8 @@ export function Field({
 /* ------------------------------- Mảnh nhỏ ------------------------------ */
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-2xl border border-brand-100 bg-white shadow-sm ${className}`}>{children}</div>
-  );
+  // Viền mảnh thay cho bóng đổ — đỡ cảm giác mọi thứ bồng bềnh
+  return <div className={`rounded-xl border border-brand-100 bg-white ${className}`}>{children}</div>;
 }
 
 export function Dot({ className = 'bg-teal' }: { className?: string }) {
@@ -96,7 +97,7 @@ export function Dot({ className = 'bg-teal' }: { className?: string }) {
 
 export function ErrorBanner({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-xl bg-danger-bg p-3 text-left">
+    <div className="flex items-start gap-2.5 rounded-lg bg-danger-bg p-3 text-left">
       <Icon name="error" className="mt-0.5 shrink-0 text-danger" />
       <div className="flex-1 text-xs">
         <p className="font-semibold text-danger">{title}</p>
@@ -131,6 +132,56 @@ export function Placeholder({
       <Icon name={icon} size={26} className="opacity-50" />
       <span className={`text-[13px] font-semibold ${dark ? 'text-slate-300' : 'text-ink-2'}`}>{title}</span>
       <span className="text-[11px] opacity-80">{note}</span>
+    </div>
+  );
+}
+
+/* ------------------------------ Hộp thoại ------------------------------ */
+
+/**
+ * Khung hộp thoại dùng chung cho cả app — tạo bài làm, tạo biến, xác nhận.
+ * Đóng bằng Esc hoặc bấm ra ngoài; Enter để xác nhận nếu có `onSubmit`.
+ */
+export function Modal({
+  icon = 'edit_note',
+  title,
+  children,
+  footer,
+  onClose,
+  onSubmit,
+}: {
+  icon?: string;
+  title: string;
+  children?: ReactNode;
+  footer: ReactNode;
+  onClose: () => void;
+  onSubmit?: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-sm rounded-xl border border-brand-100 bg-white p-6 shadow-xl"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+          if (e.key === 'Enter' && onSubmit) onSubmit();
+        }}
+      >
+        <div className="mb-4 flex items-start gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-100 text-brand">
+            <Icon name={icon} />
+          </span>
+          <p className="pt-1.5 text-[14px] font-semibold text-ink">{title}</p>
+        </div>
+
+        {children}
+
+        <div className="mt-5 flex items-center justify-end gap-2">{footer}</div>
+      </div>
     </div>
   );
 }

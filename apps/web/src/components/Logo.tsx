@@ -38,17 +38,14 @@ export function LogoMark({ size = 32 }: { size?: number }) {
   );
 }
 
-/** Logo + tên sản phẩm + huy hiệu STUDIO */
-export function Wordmark({ badge = true }: { badge?: boolean }) {
+/** Logo + tên sản phẩm */
+export function Wordmark() {
   return (
     <span className="flex items-center gap-2.5">
-      <Mascot size={34} />
-      <span className="text-[17px] font-semibold tracking-tight text-ink">INO Robot Studio</span>
-      {badge && (
-        <span className="rounded-lg bg-brand-200 px-2 py-0.5 text-[11px] font-semibold tracking-wider text-brand uppercase">
-          Studio
-        </span>
-      )}
+      <Mascot size={32} />
+      <span className="font-head text-[17px] font-semibold tracking-tight text-ink">
+        INO Robot Studio
+      </span>
     </span>
   );
 }

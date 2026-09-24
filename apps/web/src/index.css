@@ -29,6 +29,8 @@
   --color-grape: #632ecd;
   --color-amber-block: #f59e0b;
 
+  --font-sans: 'Be Vietnam Pro', system-ui, 'Segoe UI', sans-serif;
+  --font-head: 'Lexend', 'Be Vietnam Pro', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
@@ -40,10 +42,16 @@ body,
 
 body {
   margin: 0;
-  font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   background: var(--color-page);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+  font-family: var(--font-head);
+  letter-spacing: -0.015em;
 }
 
 ::selection {
@@ -83,6 +91,37 @@ body {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
+}
+
+/* --------------------------- Blockly --------------------------- */
+/* Ngăn kéo dùng loại không có cột nhóm (flyoutToolbox), nội dung do app bơm
+   vào theo nhóm đang chọn — xem BlocklyCanvas.tsx.
+   KHÔNG ẩn .blocklyToolbox bằng CSS: cột nhóm chính là thứ điều khiển nội dung
+   ngăn kéo, ẩn đi thì ngăn kéo rỗng và rộng bằng 0. */
+
+.ino-blockly .blocklyFlyoutBackground {
+  fill: #ffffff;
+}
+
+.ino-blockly .blocklyMainBackground {
+  stroke: none;
+}
+
+/* Nút "Tạo biến..." trong ngăn kéo — mặc định là hộp xám của Blockly */
+.ino-blockly .blocklyFlyoutButtonBackground {
+  fill: #ea580c;
+  rx: 8;
+  ry: 8;
+  stroke: none;
+}
+
+.ino-blockly .blocklyFlyoutButton:hover .blocklyFlyoutButtonBackground {
+  fill: #c2410c;
+}
+
+.ino-blockly .blocklyFlyoutButton .blocklyText {
+  fill: #ffffff;
+  font-weight: 600;
 }
 
 /* Nền chấm cho vùng lắp khối lệnh */

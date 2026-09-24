@@ -69,8 +69,35 @@ export interface ProjectSummary {
   scenarioId: string;
   thumbnail: string | null;
   isTemplate: boolean;
+  /** Số khối lệnh, do máy chủ tự đếm mỗi lần lưu */
+  blockCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Đếm số khối lệnh trong nội dung Blockly đã lưu.
+ *
+ * Cấu trúc của Blockly là cây: mỗi khối có thể chứa khối con trong `inputs`
+ * và khối nối phía dưới trong `next`, nên phải đếm đệ quy.
+ * Máy chủ tự đếm thay vì tin số do trình duyệt gửi lên.
+ */
+export function countBlocks(workspace: unknown): number {
+  const node = workspace as { blocks?: { blocks?: unknown[] } } | null;
+  const roots = node?.blocks?.blocks;
+  if (!Array.isArray(roots)) return 0;
+
+  const countOne = (block: unknown): number => {
+    if (!block || typeof block !== 'object') return 0;
+    const b = block as { inputs?: Record<string, { block?: unknown }>; next?: { block?: unknown } };
+
+    let total = 1;
+    for (const input of Object.values(b.inputs ?? {})) total += countOne(input?.block);
+    total += countOne(b.next?.block);
+    return total;
+  };
+
+  return roots.reduce<number>((sum, b) => sum + countOne(b), 0);
 }
 
 export interface ProjectDetail extends ProjectSummary {

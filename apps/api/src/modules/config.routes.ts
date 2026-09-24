@@ -48,6 +48,7 @@ export default async function configRoutes(app: FastifyInstance) {
         scenarioId: true,
         thumbnail: true,
         isTemplate: true,
+        blockCount: true,
         createdAt: true,
         updatedAt: true,
       },
