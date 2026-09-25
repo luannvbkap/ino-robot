@@ -76,6 +76,36 @@ export interface ProjectSummary {
 }
 
 /**
+ * Phiên bản định dạng nội dung khối lệnh CỦA INO.
+ * Khác với `languageVersion` bên trong dữ liệu Blockly — đó là phiên bản của
+ * Blockly, không phải của bộ khối lệnh INO.
+ *
+ * Tăng số này mỗi khi đổi tên khối hoặc đổi ý nghĩa tham số, để bài làm cũ
+ * của học sinh còn có đường nâng cấp thay vì mở lên là hỏng.
+ */
+export const WORKSPACE_VERSION = 1;
+
+export interface StoredWorkspace {
+  version: number;
+  blocks: unknown;
+}
+
+/** Bọc nội dung Blockly kèm số phiên bản trước khi lưu xuống database */
+export function wrapWorkspace(blocklyState: unknown): StoredWorkspace {
+  return { version: WORKSPACE_VERSION, blocks: blocklyState };
+}
+
+/**
+ * Lấy nội dung Blockly ra khỏi bản đã lưu.
+ * Bài làm lưu trước khi có trường `version` thì chính nó là nội dung Blockly —
+ * coi như phiên bản 1, không cần chạy migration.
+ */
+export function unwrapWorkspace(stored: unknown): unknown {
+  const w = stored as Partial<StoredWorkspace> | null;
+  return w && typeof w === 'object' && 'version' in w ? w.blocks : stored;
+}
+
+/**
  * Đếm số khối lệnh trong nội dung Blockly đã lưu.
  *
  * Cấu trúc của Blockly là cây: mỗi khối có thể chứa khối con trong `inputs`
@@ -83,7 +113,7 @@ export interface ProjectSummary {
  * Máy chủ tự đếm thay vì tin số do trình duyệt gửi lên.
  */
 export function countBlocks(workspace: unknown): number {
-  const node = workspace as { blocks?: { blocks?: unknown[] } } | null;
+  const node = unwrapWorkspace(workspace) as { blocks?: { blocks?: unknown[] } } | null;
   const roots = node?.blocks?.blocks;
   if (!Array.isArray(roots)) return 0;
 
@@ -114,6 +144,8 @@ export interface SensorConfig {
 }
 
 export interface RobotConfig {
+  /** Phiên bản cấu trúc file — xem PTTK-02 mục 8 */
+  schemaVersion: number;
   id: string;
   name: string;
   model: string;
@@ -126,6 +158,8 @@ export interface RobotConfig {
 }
 
 export interface ScenarioConfig {
+  /** Phiên bản cấu trúc file — xem PTTK-02 mục 8 */
+  schemaVersion: number;
   id: string;
   name: string;
   ground: string;

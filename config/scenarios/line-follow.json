@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "id": "line-follow",
   "name": "Dò vạch kẻ",
   "ground": "/scenarios/line-follow.png",

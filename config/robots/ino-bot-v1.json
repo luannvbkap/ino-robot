@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "id": "ino-bot-v1",
   "name": "INO Bot",
   "model": "/models/ino-bot.glb",
@@ -9,5 +10,5 @@
     { "id": "lineR", "type": "line", "position": [0.02, 0.0, 0.06] },
     { "id": "dist", "type": "ultrasonic", "position": [0.0, 0.03, 0.07], "maxRange": 2.0 }
   ],
-  "blocks": ["motion", "sensors", "control", "logic", "math", "variables"]
+  "blocks": ["motion", "sensors", "control", "logic", "math", "variables", "serial"]
 }

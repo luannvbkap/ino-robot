@@ -15,8 +15,9 @@ export const MATH_BLOCKS: BlockSpec[] = [
     shape: 'number',
     tooltip:
       'Đổi một giá trị từ khoảng này sang khoảng khác. Ví dụ đổi số đọc từ cảm biến (0–1023) thành phần trăm tốc độ (0–100).',
-    toJS: (a) =>
-      `robot.map(${a.VALUE || 0}, ${a.FROM_LOW}, ${a.FROM_HIGH}, ${a.TO_LOW}, ${a.TO_HIGH})`,
+    // Dùng hàm tiện ích riêng, KHÔNG gắn vào robot: đây là phép toán thuần,
+    // không liên quan gì tới phần cứng — xem PTTK-02 mục 6b
+    toJS: (a) => `inoMap(${a.VALUE || 0}, ${a.FROM_LOW}, ${a.FROM_HIGH}, ${a.TO_LOW}, ${a.TO_HIGH})`,
     toCpp: (a) => `map(${a.VALUE || 0}, ${a.FROM_LOW}, ${a.FROM_HIGH}, ${a.TO_LOW}, ${a.TO_HIGH})`,
   },
 ];

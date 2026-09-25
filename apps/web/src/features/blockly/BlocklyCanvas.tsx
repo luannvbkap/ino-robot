@@ -8,6 +8,7 @@ import {
   initialToolbox,
   registerInoBlocks,
 } from '@ino/blocks';
+import { unwrapWorkspace, wrapWorkspace } from '@ino/shared';
 import { useToast } from '@/components/ui';
 
 // Giao diện Blockly tiếng Việt có sẵn, không phải tự dịch
@@ -96,7 +97,7 @@ export function BlocklyCanvas({
 
     // Nạp bài làm đã lưu; bài mới thì đặt sẵn khối "khi bấm vào nút Chạy"
     try {
-      const saved = initial as { blocks?: { blocks?: unknown[] } } | null;
+      const saved = unwrapWorkspace(initial) as { blocks?: { blocks?: unknown[] } } | null;
       if (saved?.blocks?.blocks?.length) {
         Blockly.serialization.workspaces.load(saved, ws);
       } else {
@@ -109,7 +110,7 @@ export function BlocklyCanvas({
     const emit = () => {
       if (ws.isDragging()) return;
       latest.current({
-        workspace: Blockly.serialization.workspaces.save(ws),
+        workspace: wrapWorkspace(Blockly.serialization.workspaces.save(ws)),
         cpp: generateCpp(ws),
         blockCount: ws.getAllBlocks(false).length,
       });

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "id": "obstacle-avoid",
   "name": "Tránh vật cản",
   "ground": "/scenarios/plain.png",

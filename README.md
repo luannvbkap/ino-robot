@@ -50,6 +50,7 @@ pnpm dev      # chạy cả frontend và backend
 ## Lệnh hay dùng
 
 ```bash
+pnpm test         # chạy toàn bộ unit test
 pnpm typecheck    # kiểm tra lỗi TypeScript toàn dự án
 pnpm db:studio    # mở giao diện xem database
 pnpm db:down      # tắt PostgreSQL
