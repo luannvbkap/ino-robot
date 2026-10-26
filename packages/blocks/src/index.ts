@@ -3,3 +3,4 @@ export * from './registry';
 export { CATEGORY_ORDER, flyoutContents, initialToolbox } from './toolbox';
 export { registerInoBlocks } from './blockly-defs';
 export { cppGenerator, generateCpp } from './generators/cpp';
+export { generateJs, registerJsGenerators, HIGHLIGHT_FN } from './generators/js';

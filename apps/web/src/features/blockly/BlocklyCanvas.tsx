@@ -5,6 +5,7 @@ import {
   CATEGORY_ORDER,
   flyoutContents,
   generateCpp,
+  generateJs,
   initialToolbox,
   registerInoBlocks,
 } from '@ino/blocks';
@@ -48,6 +49,16 @@ export interface WorkspaceChange {
   blockCount: number;
 }
 
+/** Những việc trình chạy chương trình cần nhờ Blockly làm */
+export interface BlocklyApi {
+  /** Sinh mã JavaScript từ khối lệnh hiện tại, lấy ngay lúc bấm Chạy */
+  generateJs: () => string;
+  /** Tô sáng khối đang chạy; truyền null để tắt */
+  highlight: (blockId: string | null) => void;
+  /** Có khối lệnh nào để chạy không (không tính khối bắt đầu) */
+  hasProgram: () => boolean;
+}
+
 export function BlocklyCanvas({
   initial,
   categoryIndex,
@@ -57,7 +68,7 @@ export function BlocklyCanvas({
   initial: unknown;
   categoryIndex: number;
   onChange: (change: WorkspaceChange) => void;
-  onReady?: () => void;
+  onReady?: (api: BlocklyApi) => void;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<Blockly.WorkspaceSvg | null>(null);
@@ -147,7 +158,12 @@ export function BlocklyCanvas({
     });
 
     emit();
-    onReady?.();
+    onReady?.({
+      generateJs: () => generateJs(ws),
+      highlight: (blockId) => ws.highlightBlock(blockId ?? ''),
+      // Khối mũ "khi bấm vào nút Chạy" một mình thì chưa phải chương trình
+      hasProgram: () => ws.getAllBlocks(false).some((b) => b.type !== 'ino_on_start'),
+    });
 
     // Lúc inject xong, khung chứa có thể chưa có kích thước cuối cùng
     // (ngăn kéo chưa bơm khối, bố cục flex còn đang dàn).

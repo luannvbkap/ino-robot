@@ -64,6 +64,8 @@ apps/
   web/        React + Vite + Tailwind
 packages/
   shared/     type và schema dùng chung cho cả hai
+  blocks/     định nghĩa khối lệnh + sinh mã C++ và JavaScript
+  sim-core/   robot ảo và trình chạy chương trình (không phụ thuộc React)
 config/
   robots/     cấu hình mẫu robot   (thêm robot = thêm file JSON)
   scenarios/  cấu hình kịch bản    (thêm sa bàn = thêm file JSON)
@@ -83,7 +85,7 @@ config/
 |---|---|---|
 | M0 | Khung dự án, đăng nhập, CRUD bài làm | ✅ Xong |
 | M1 | Blockly, 38 khối lệnh, tự động lưu, sinh mã C++ | ✅ Xong |
-| M2 | Chạy chương trình từng bước, tô sáng khối | Chưa làm |
+| M2 | Chạy chương trình từng bước, tô sáng khối, tạm dừng, ba mức tốc độ | ✅ Xong |
 | M3 | Viewport 3D, robot di chuyển | Chưa làm |
 | M4 | Cảm biến ảo, hai kịch bản | Chưa làm |
 | M5 | Bài mẫu, hoàn thiện, triển khai | Chưa làm |
@@ -96,3 +98,8 @@ config/
 - **Ảnh chụp thật trên thẻ bài làm** — trường `thumbnail` đã có trong database,
   chờ **M3** có mô phỏng rồi chụp màn hình workspace thay hình vẽ sẵn.
 - **Màu phụ của thương hiệu** — cần hỏi INO đã có bộ màu chưa trước khi chọn.
+- **Hình robot trong khung mô phỏng** — M2 chỉ hiện trạng thái robot bằng số
+  (vị trí, góc quay, tốc độ hai bánh, thời gian). Hình robot 3D thuộc **M3**.
+- **Cảm biến đọc giá trị cố định** — dò vạch luôn trả về "không thấy vạch",
+  khoảng cách luôn 100 cm, kèm cảnh báo một lần ở bảng thông báo.
+  Đọc thật từ sa bàn thuộc **M4**.

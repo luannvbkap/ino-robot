@@ -23,7 +23,7 @@ export const CONTROL_BLOCKS: BlockSpec[] = [
     shape: 'statement',
     bodies: [{ name: 'BODY' }],
     tooltip: 'Lặp lại các lệnh bên trong không ngừng',
-    toJS: (a) => `while (true) {\n${a.BODY}await robot.tick();\n}\n`,
+    toJS: (a) => `while (true) {\n${a.BODY}robot.tick();\n}\n`,
     toCpp: (a) => `while (true) {\n${a.BODY}}\n`,
   },
   {
@@ -34,7 +34,7 @@ export const CONTROL_BLOCKS: BlockSpec[] = [
     shape: 'statement',
     bodies: [{ name: 'BODY' }],
     tooltip: 'Lặp lại các lệnh bên trong số lần đã chọn',
-    toJS: (a) => `for (let i = 0; i < ${a.TIMES}; i++) {\n${a.BODY}await robot.tick();\n}\n`,
+    toJS: (a) => `for (var i = 0; i < ${a.TIMES}; i++) {\n${a.BODY}robot.tick();\n}\n`,
     toCpp: (a) => `for (int i = 0; i < ${a.TIMES}; i++) {\n${a.BODY}}\n`,
   },
   {
@@ -45,7 +45,7 @@ export const CONTROL_BLOCKS: BlockSpec[] = [
     shape: 'statement',
     bodies: [{ name: 'BODY' }],
     tooltip: 'Lặp lại các lệnh bên trong cho tới khi điều kiện đúng thì thoát ra',
-    toJS: (a) => `while (!(${a.COND || 'false'})) {\n${a.BODY}await robot.tick();\n}\n`,
+    toJS: (a) => `while (!(${a.COND || 'false'})) {\n${a.BODY}robot.tick();\n}\n`,
     toCpp: (a) => `while (!(${a.COND || 'false'})) {\n${a.BODY}}\n`,
   },
   {
@@ -76,7 +76,7 @@ export const CONTROL_BLOCKS: BlockSpec[] = [
     args: [{ name: 'SECONDS', kind: 'number', value: 1, min: 0, max: 60 }],
     shape: 'statement',
     tooltip: 'Dừng chương trình trong khoảng thời gian đã chọn rồi chạy tiếp',
-    toJS: (a) => `await robot.wait(${a.SECONDS});\n`,
+    toJS: (a) => `robot.wait(${a.SECONDS});\n`,
     toCpp: (a) => `delay(${a.SECONDS} * 1000);\n`,
   },
   {
@@ -86,7 +86,7 @@ export const CONTROL_BLOCKS: BlockSpec[] = [
     args: [{ name: 'COND', kind: 'input', check: 'Boolean' }],
     shape: 'statement',
     tooltip: 'Dừng lại cho tới khi điều kiện đúng thì chạy tiếp',
-    toJS: (a) => `while (!(${a.COND || 'false'})) { await robot.tick(); }\n`,
+    toJS: (a) => `while (!(${a.COND || 'false'})) { robot.tick(); }\n`,
     toCpp: (a) => `while (!(${a.COND || 'false'})) { delay(10); }\n`,
   },
 ];

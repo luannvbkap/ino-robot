@@ -5,11 +5,17 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { useFullscreen } from '@/lib/use-fullscreen';
-import { Button, Placeholder, Spinner, useToast } from '@/components/ui';
+import { Button, Spinner, useToast } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { Mascot } from '@/components/Logo';
 import { ResizeHandle, clamp, usePersistedLayout } from '@/components/Resizer';
-import { BlocklyCanvas, type WorkspaceChange } from '@/features/blockly/BlocklyCanvas';
+import {
+  BlocklyCanvas,
+  type BlocklyApi,
+  type WorkspaceChange,
+} from '@/features/blockly/BlocklyCanvas';
+import { useRunner } from '@/features/run/useRunner';
+import { RunPanel } from '@/features/run/RunPanel';
 import { CodePanel, type CodeTheme } from '@/features/blockly/CodePanel';
 import { BlocklyDialogs } from '@/features/blockly/BlocklyDialogs';
 
@@ -50,14 +56,14 @@ export default function EditorPage() {
   const [title, setTitle] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
   const [save, setSave] = useState<SaveState>('idle');
-  const [zoom, setZoom] = useState(100);
-  const [perspective, setPerspective] = useState<'3d' | '2d'>('3d');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isFull, toggle: toggleFullscreen } = useFullscreen();
 
   /** Nội dung khối lệnh và mã C++ sinh ra, cập nhật mỗi khi kéo thả */
   const [cpp, setCpp] = useState('');
   const [blockCount, setBlockCount] = useState(0);
+  const [blocklyApi, setBlocklyApi] = useState<BlocklyApi | null>(null);
+  const run = useRunner(blocklyApi);
   const wsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstChange = useRef(true);
 
@@ -89,6 +95,15 @@ export default function EditorPage() {
         notify('Không lưu được, kiểm tra lại kết nối');
       }
     }, 800);
+  }
+
+  /**
+   * Bấm Chạy mà cột phải đang hiện mã nguồn (hoặc đang bị ẩn) thì học sinh
+   * không thấy robot chạy — mở sẵn khung mô phỏng rồi mới chạy.
+   */
+  function onRun() {
+    setLayout((l) => ({ ...l, rightOpen: true, codeOpen: false }));
+    run.start();
   }
 
   /**
@@ -265,27 +280,64 @@ export default function EditorPage() {
             </div>
 
             {/* Cụm nút điều khiển chạy */}
-            <div className="flex shrink-0 items-center rounded-xl border border-brand-200 bg-brand-50 p-1 shadow-inner">
-              <Button variant="success" size="sm" disabled title="Chưa có khối lệnh nào để chạy">
+            <div className="flex shrink-0 items-center rounded-lg border border-brand-200 bg-brand-50 p-1">
+              <Button
+                variant="success"
+                size="sm"
+                onClick={run.isPaused ? run.resume : onRun}
+                disabled={!run.canRun}
+                title={
+                  run.canRun
+                    ? run.isPaused
+                      ? 'Chạy tiếp'
+                      : 'Chạy chương trình'
+                    : 'Hãy kéo khối lệnh vào vùng lập trình trước'
+                }
+              >
                 <Icon name="play_arrow" size={18} />
-                Chạy
+                {run.isPaused ? 'Tiếp' : 'Chạy'}
               </Button>
+
               <button
-                disabled
+                onClick={run.pause}
+                disabled={!run.isRunning}
                 title="Tạm dừng"
-                className="flex h-8 w-9 items-center justify-center rounded-lg text-ink-3/50"
+                className="flex h-8 w-9 cursor-pointer items-center justify-center rounded-md text-ink-2 transition-colors hover:bg-brand-200 disabled:cursor-not-allowed disabled:text-ink-3/40 disabled:hover:bg-transparent"
               >
                 <Icon name="pause" />
               </button>
+
               <button
-                disabled
-                title="Dừng robot"
-                className="flex h-8 w-9 items-center justify-center rounded-lg text-ink-3/50"
+                onClick={run.stop}
+                disabled={run.status === 'idle'}
+                title="Dừng và đưa robot về vị trí xuất phát"
+                className="flex h-8 w-9 cursor-pointer items-center justify-center rounded-md text-danger transition-colors hover:bg-danger-bg/60 disabled:cursor-not-allowed disabled:text-ink-3/40 disabled:hover:bg-transparent"
               >
                 <Icon name="stop" size={18} />
               </button>
+
               <span className="mx-1 h-5 w-px bg-brand-300" />
-              <span className="px-2.5 py-1 text-[12px] font-medium text-ink-3/70">🐢 Chậm</span>
+
+              {(
+                [
+                  ['slow', '🐢', 'Chậm'],
+                  ['normal', '🚗', 'Vừa'],
+                  ['fast', '⚡', 'Nhanh'],
+                ] as const
+              ).map(([value, icon, label]) => (
+                <button
+                  key={value}
+                  onClick={() => run.setSpeed(value)}
+                  title={`Tốc độ ${label.toLowerCase()}`}
+                  className={`cursor-pointer rounded-md px-2 py-1 text-[12px] font-medium transition-colors ${
+                    run.speed === value
+                      ? 'bg-white text-ink shadow-sm'
+                      : 'text-ink-2 hover:bg-brand-200'
+                  }`}
+                >
+                  {icon} {label}
+                </button>
+              ))}
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
@@ -369,6 +421,7 @@ export default function EditorPage() {
                 initial={data.project.workspace}
                 categoryIndex={CATEGORIES.findIndex((c) => c.id === activeCategory)}
                 onChange={onWorkspaceChange}
+                onReady={setBlocklyApi}
               />
             </div>
 
@@ -398,27 +451,7 @@ export default function EditorPage() {
                       onToggleTheme={() => setLayout((l) => ({ ...l, codeDark: !l.codeDark }))}
                     />
                   ) : (
-                    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-brand-50 via-brand-100 to-brand-200">
-                      <div className="absolute top-3 left-3 z-30 flex items-center rounded-lg border border-brand-100 bg-white/95 p-0.5 shadow-sm backdrop-blur">
-                        {(['3d', '2d'] as const).map((p) => (
-                          <button
-                            key={p}
-                            onClick={() => setPerspective(p)}
-                            className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all ${
-                              perspective === p ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
-                            }`}
-                          >
-                            {p === '3d' ? 'Góc nhìn 3D' : 'Góc nhìn trên (2D)'}
-                          </button>
-                        ))}
-                      </div>
-
-                      <Placeholder
-                        icon="view_in_ar"
-                        title="Robot ảo 3D"
-                        note="Mốc M3 — Three.js · Mốc M4 — cảm biến ảo"
-                      />
-                    </div>
+                    <RunPanel state={run.robotState} output={run.output} />
                   )}
                 </aside>
               </>

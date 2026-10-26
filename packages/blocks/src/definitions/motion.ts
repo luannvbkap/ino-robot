@@ -12,7 +12,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     ],
     shape: 'statement',
     tooltip: 'Robot đi thẳng về phía trước trong khoảng thời gian đã chọn',
-    toJS: (a) => `await robot.forward(${a.SPEED}, ${a.SECONDS});\n`,
+    toJS: (a) => `robot.forward(${a.SPEED}, ${a.SECONDS});\n`,
     toCpp: (a) => `ino.driveForward(${a.SPEED});\ndelay(${a.SECONDS} * 1000);\nino.stop();\n`,
   },
   {
@@ -25,7 +25,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     ],
     shape: 'statement',
     tooltip: 'Robot lùi lại phía sau',
-    toJS: (a) => `await robot.backward(${a.SPEED}, ${a.SECONDS});\n`,
+    toJS: (a) => `robot.backward(${a.SPEED}, ${a.SECONDS});\n`,
     toCpp: (a) => `ino.driveBackward(${a.SPEED});\ndelay(${a.SECONDS} * 1000);\nino.stop();\n`,
   },
   {
@@ -35,7 +35,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     args: [{ name: 'SPEED', kind: 'number', value: 50, min: 0, max: 100 }],
     shape: 'statement',
     tooltip: 'Robot quay sang trái, chạy cho tới khi gặp lệnh khác',
-    toJS: (a) => `await robot.turnLeft(${a.SPEED});\n`,
+    toJS: (a) => `robot.turnLeft(${a.SPEED});\n`,
     toCpp: (a) => `ino.turnLeft(${a.SPEED});\n`,
   },
   {
@@ -45,7 +45,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     args: [{ name: 'SPEED', kind: 'number', value: 50, min: 0, max: 100 }],
     shape: 'statement',
     tooltip: 'Robot quay sang phải, chạy cho tới khi gặp lệnh khác',
-    toJS: (a) => `await robot.turnRight(${a.SPEED});\n`,
+    toJS: (a) => `robot.turnRight(${a.SPEED});\n`,
     toCpp: (a) => `ino.turnRight(${a.SPEED});\n`,
   },
   {
@@ -58,7 +58,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     ],
     shape: 'statement',
     tooltip: 'Robot quay trái trong khoảng thời gian đã chọn rồi tự dừng',
-    toJS: (a) => `await robot.turnLeftFor(${a.SPEED}, ${a.SECONDS});\n`,
+    toJS: (a) => `robot.turnLeftFor(${a.SPEED}, ${a.SECONDS});\n`,
     toCpp: (a) => `ino.turnLeft(${a.SPEED});\ndelay(${a.SECONDS} * 1000);\nino.stop();\n`,
   },
   {
@@ -71,7 +71,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     ],
     shape: 'statement',
     tooltip: 'Robot quay phải trong khoảng thời gian đã chọn rồi tự dừng',
-    toJS: (a) => `await robot.turnRightFor(${a.SPEED}, ${a.SECONDS});\n`,
+    toJS: (a) => `robot.turnRightFor(${a.SPEED}, ${a.SECONDS});\n`,
     toCpp: (a) => `ino.turnRight(${a.SPEED});\ndelay(${a.SECONDS} * 1000);\nino.stop();\n`,
   },
   {
@@ -81,7 +81,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     args: [{ name: 'SPEED', kind: 'number', value: 50, min: 0, max: 100 }],
     shape: 'statement',
     tooltip: 'Robot đi thẳng liên tục cho tới khi gặp lệnh khác. Dùng trong vòng lặp dò line.',
-    toJS: (a) => `await robot.forwardOn(${a.SPEED});\n`,
+    toJS: (a) => `robot.forwardOn(${a.SPEED});\n`,
     toCpp: (a) => `ino.driveForward(${a.SPEED});\n`,
   },
   {
@@ -91,7 +91,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     args: [{ name: 'SPEED', kind: 'number', value: 50, min: 0, max: 100 }],
     shape: 'statement',
     tooltip: 'Robot lùi liên tục cho tới khi gặp lệnh khác',
-    toJS: (a) => `await robot.backwardOn(${a.SPEED});\n`,
+    toJS: (a) => `robot.backwardOn(${a.SPEED});\n`,
     toCpp: (a) => `ino.driveBackward(${a.SPEED});\n`,
   },
   {
@@ -104,7 +104,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     ],
     shape: 'statement',
     tooltip: 'Đặt tốc độ riêng cho từng bánh. Số âm là quay ngược.',
-    toJS: (a) => `await robot.drive(${a.LEFT}, ${a.RIGHT});\n`,
+    toJS: (a) => `robot.drive(${a.LEFT}, ${a.RIGHT});\n`,
     toCpp: (a) => `ino.drive(${a.LEFT}, ${a.RIGHT});\n`,
   },
   {
@@ -114,7 +114,7 @@ export const MOTION_BLOCKS: BlockSpec[] = [
     args: [],
     shape: 'statement',
     tooltip: 'Dừng cả hai bánh xe',
-    toJS: () => `await robot.stop();\n`,
+    toJS: () => `robot.stop();\n`,
     toCpp: () => `ino.stop();\n`,
   },
 ];
