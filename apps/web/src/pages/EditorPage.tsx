@@ -19,6 +19,8 @@ import { RunPanel } from '@/features/run/RunPanel';
 import { CodePanel, type CodeTheme } from '@/features/blockly/CodePanel';
 import { BlocklyDialogs } from '@/features/blockly/BlocklyDialogs';
 import { specOf, startPoseOf } from '@/features/simulator/scenario';
+import { trackSave, waitForSaves } from '@/lib/pending-saves';
+import type { UpdateProjectInput } from '@ino/shared';
 
 /** Nhóm khối lệnh — màu và biểu tượng lấy từ thiết kế */
 const CATEGORIES = [
@@ -57,14 +59,12 @@ export default function EditorPage() {
   const [title, setTitle] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
   const [save, setSave] = useState<SaveState>('idle');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isFull, toggle: toggleFullscreen } = useFullscreen();
 
   /** Nội dung khối lệnh và mã C++ sinh ra, cập nhật mỗi khi kéo thả */
   const [cpp, setCpp] = useState('');
   const [blockCount, setBlockCount] = useState(0);
   const [blocklyApi, setBlocklyApi] = useState<BlocklyApi | null>(null);
-  const wsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstChange = useRef(true);
 
   /** Bố cục do người dùng kéo chỉnh, nhớ lại ở lần mở sau */
@@ -72,8 +72,19 @@ export default function EditorPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['project', id],
-    queryFn: () => api.projects.get(id),
+    // Đợi lần lưu đang gửi dở (nếu vừa rời trang rồi quay lại ngay) xong rồi
+    // mới tải, nếu không sẽ nhận về bản cũ
+    queryFn: async () => {
+      await waitForSaves(id);
+      return api.projects.get(id);
+    },
     enabled: Boolean(id),
+    // KHÔNG giữ bài làm trong bộ nhớ đệm. Blockly chỉ nạp nội dung một lần lúc
+    // mở; nếu mở bằng bản đệm cũ thì bản mới tải về sau đó bị bỏ qua — học sinh
+    // thấy bài lưu của lần trước nữa, sửa tiếp là ghi đè mất bản mới.
+    gcTime: 0,
+    // Bài làm chỉ được sửa ở đây; tải lại lúc quay về tab có thể đè lên tên đang gõ
+    refetchOnWindowFocus: false,
   });
 
   /** Cấu hình robot và kịch bản là file tĩnh trên máy chủ, tải một lần là đủ */
@@ -88,6 +99,76 @@ export default function EditorPage() {
   /* ---------------- Ảnh thu nhỏ cho thẻ bài làm ---------------- */
 
   const qc = useQueryClient();
+
+  /* ------------------------------ Tự động lưu ------------------------------ */
+
+  /** Thay đổi chưa gửi lên máy chủ — gom lại để gửi chung một lần */
+  const unsaved = useRef<UpdateProjectInput>({});
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Gửi NGAY mọi thay đổi đang chờ. Dùng cả lúc rời trang nên không đụng tới
+   * state của React. Gửi lỗi thì trả thay đổi về hàng chờ để lần sau gửi lại.
+   */
+  const flush = useCallback(() => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    const changes = unsaved.current;
+    if (Object.keys(changes).length === 0) return null;
+    unsaved.current = {};
+
+    const sending = api.projects.update(id, changes).catch((err: unknown) => {
+      unsaved.current = { ...changes, ...unsaved.current };
+      throw err;
+    });
+    return trackSave(id, sending);
+  }, [id]);
+
+  /** Xếp thay đổi vào hàng chờ, gửi sau `delay` ms kể từ thao tác cuối cùng */
+  function queueSave(changes: UpdateProjectInput, delay: number) {
+    unsaved.current = { ...unsaved.current, ...changes };
+    setSave('saving');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      const sending = flush();
+      if (!sending) return;
+      try {
+        await sending;
+        setSave('saved');
+        void qc.invalidateQueries({ queryKey: ['projects'] });
+      } catch {
+        setSave('idle');
+        notify('Không lưu được bài làm, kiểm tra lại kết nối');
+      }
+    }, delay);
+  }
+
+  // Rời trang soạn thảo (về trang chủ, sang bài khác) mà còn thay đổi chưa
+  // gửi thì gửi ngay — trước đây lần lưu bị huỷ luôn
+  useEffect(
+    () => () => {
+      void flush()
+        ?.then(() => qc.invalidateQueries({ queryKey: ['projects'] }))
+        .catch(() => {});
+    },
+    [flush, qc],
+  );
+
+  // Đóng tab hoặc tải lại trang khi còn thay đổi chưa lưu: gửi ngay và hỏi lại
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(unsaved.current).length === 0) return;
+      void flush()?.catch(() => {});
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [flush]);
+
+  /* ------------------------ Ảnh thu nhỏ cho thẻ bài làm ------------------------ */
+
   const capture = useRef<(() => string | null) | null>(null);
   const onCaptureReady = useCallback((fn: (() => string | null) | null) => {
     capture.current = fn;
@@ -98,7 +179,7 @@ export default function EditorPage() {
     const image = capture.current?.();
     if (!image) return;
     try {
-      await api.projects.update(id, { thumbnail: image });
+      await trackSave(id, api.projects.update(id, { thumbnail: image }));
       void qc.invalidateQueries({ queryKey: ['projects'] });
     } catch {
       // Ảnh thu nhỏ chỉ để trang trí — lưu không được thì lần chạy sau lưu lại
@@ -122,18 +203,7 @@ export default function EditorPage() {
   /** Đổi tên bài làm — tự lưu sau khi ngừng gõ 800ms */
   function onRename(value: string) {
     setTitle(value);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      if (!value.trim()) return;
-      setSave('saving');
-      try {
-        await api.projects.update(id, { name: value.trim() });
-        setSave('saved');
-      } catch {
-        setSave('idle');
-        notify('Không lưu được, kiểm tra lại kết nối');
-      }
-    }, 800);
+    if (value.trim()) queueSave({ name: value.trim() }, 800);
   }
 
   /**
@@ -159,17 +229,7 @@ export default function EditorPage() {
       return;
     }
 
-    if (wsTimer.current) clearTimeout(wsTimer.current);
-    setSave('saving');
-    wsTimer.current = setTimeout(async () => {
-      try {
-        await api.projects.update(id, { workspace });
-        setSave('saved');
-      } catch {
-        setSave('idle');
-        notify('Không lưu được bài làm, kiểm tra lại kết nối');
-      }
-    }, 2000);
+    queueSave({ workspace }, 2000);
   }
 
   if (isLoading) return <Spinner />;

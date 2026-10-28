@@ -106,7 +106,26 @@ ino.turnRightDeg(speed, degrees);
 
 Nếu robot không có encoder hoặc gyro, các hàm này chỉ ước lượng theo thời gian, nên trên robot thật sẽ lệch vài cm hoặc vài độ. Cần hỏi INO cấu hình phần cứng của robot.
 
-### 2.5 Môi trường phát triển
+### 2.5 Sửa lỗi: mở lại bài làm thì thấy bản lưu của lần trước nữa
+
+**Triệu chứng.** Lưu A, về trang chủ, mở lại thì chưa thấy A. Làm B, về rồi mở lại thì lại thấy A. Bản hiện ra luôn chậm một nhịp. Nguy hiểm hơn: sửa tiếp trên bản cũ đang hiện thì lần lưu sau **ghi đè mất bản mới hơn**. Lỗi có từ M1.
+
+**Nguyên nhân:**
+
+- Mở lại bài, React Query lấy ngay bản trong bộ nhớ đệm ra hiển thị, rồi tải bản mới ở nền. Blockly chỉ nạp nội dung một lần lúc mở, nên bỏ qua bản mới tải về.
+- Về trang chủ trong vòng 2 giây sau thao tác cuối (khoảng chờ trước khi tự động lưu) thì lần lưu bị huỷ.
+
+**Cách sửa** (`EditorPage.tsx`, `lib/pending-saves.ts`):
+
+- Bài làm không giữ trong bộ nhớ đệm (`gcTime: 0`): lần mở nào cũng tải bản mới nhất.
+- Rời trang soạn thảo mà còn thay đổi chưa gửi thì gửi ngay.
+- Mở bài thì đợi các lần lưu đang dở của bài đó xong rồi mới tải.
+- Đóng tab hoặc tải lại trang khi còn thay đổi chưa lưu thì gửi ngay và trình duyệt hỏi lại.
+- Lưu lỗi thì thay đổi được giữ lại để lần sau gửi lại, không bị mất.
+
+**Kiểm chứng.** Đã chạy trên trình duyệt: thêm khối rồi ra vào lại 5 lần, gồm cả về trang chủ ngay khi chưa kịp lưu và mở lại ngay lập tức. Lần nào cũng hiện đúng bản mới nhất.
+
+### 2.6 Môi trường phát triển
 
 - **Postgres đổi sang cổng 5434** (`docker-compose.yml`, `apps/api/.env.example`) để không trùng với dự án khác dùng 5433. Ai đã có file `apps/api/.env` cũ thì sửa `DATABASE_URL` sang cổng 5434.
 - `pnpm db:seed` tạo thêm tài khoản quản trị để thử trên máy dev: `admin@gmail.com` / `123456a`. Vai trò ADMIN hiện **chưa có chức năng riêng**. **Phải đổi mật khẩu trước khi triển khai thật.**
