@@ -7,6 +7,7 @@ export {
   MAX_STEPS_PER_FRAME,
   MAX_SIM_SECONDS,
   MAX_TOTAL_STEPS,
+  MAX_CATCH_UP,
   type RunnerStatus,
   type RunnerOptions,
   type RunnerLimits,

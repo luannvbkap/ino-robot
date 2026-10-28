@@ -55,6 +55,18 @@ describe('chuyển động vi sai', () => {
     expect(Math.abs(s.heading), 'phải quay được một góc').toBeGreaterThan(0.5);
   });
 
+  test('rẽ trái thì đi về phía -Z, khớp với bên trái robot trong Three.js', () => {
+    // Bánh phải nhanh hơn bánh trái = rẽ trái
+    const robot = new SimRobot();
+    robot.drive(30, 60);
+    run(robot, 60);
+
+    const s = robot.getState();
+    expect(s.heading, 'quay trái là góc dương').toBeGreaterThan(0);
+    expect(s.z, 'bên trái robot là -Z').toBeLessThan(0);
+    expect(s.x).toBeGreaterThan(0);
+  });
+
   test('đi lùi cho toạ độ âm', () => {
     const robot = new SimRobot();
     robot.backwardOn(100);

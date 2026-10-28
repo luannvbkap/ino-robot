@@ -8,6 +8,12 @@
  * `RealRobot` gửi lệnh xuống mạch thật thì không phải sửa bộ sinh mã.
  */
 export interface RobotRuntime {
+  /* --- theo quãng đường / góc: chạy đủ rồi tự dừng --- */
+  forwardCm(speed: number, cm: number): Promise<void>;
+  backwardCm(speed: number, cm: number): Promise<void>;
+  turnLeftDeg(speed: number, degrees: number): Promise<void>;
+  turnRightDeg(speed: number, degrees: number): Promise<void>;
+
   /* --- chuyển động có thời gian: chạy đủ số giây rồi tự dừng --- */
   forward(speed: number, seconds: number): Promise<void>;
   backward(speed: number, seconds: number): Promise<void>;
@@ -33,11 +39,18 @@ export interface RobotRuntime {
   print(value: unknown): void;
 }
 
-/** Trạng thái robot tại một thời điểm, đơn vị mét và radian */
+/**
+ * Trạng thái robot tại một thời điểm, đơn vị mét và radian.
+ *
+ * Hệ trục trùng với Three.js: Y hướng lên, mặt sàn là mặt phẳng XZ.
+ */
 export interface RobotState {
   x: number;
   z: number;
-  /** góc quay, radian; 0 là hướng theo trục x dương */
+  /**
+   * Góc quay quanh trục Y, radian, dương là quay trái (ngược chiều kim đồng hồ
+   * khi nhìn từ trên xuống). 0 là hướng theo +X. Dùng thẳng làm `rotation.y`.
+   */
   heading: number;
   /** tốc độ hai bánh, thang -100…100 */
   left: number;

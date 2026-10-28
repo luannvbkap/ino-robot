@@ -36,5 +36,12 @@ declare module 'js-interpreter' {
     nativeToPseudo(value: object): PseudoObject;
 
     globalObject: PseudoObject;
+
+    /**
+     * true khi đang đứng chờ một hàm bất đồng bộ gọi callback. Thuộc tính nội
+     * bộ (có gạch dưới) nhưng là cách duy nhất biết chương trình đang chờ hay
+     * đang chạy — `step()` trả về true trong cả hai trường hợp.
+     */
+    readonly paused_: boolean;
   }
 }

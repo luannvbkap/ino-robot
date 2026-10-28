@@ -35,7 +35,20 @@ async function main() {
     });
   }
 
-  console.log(`✅ Xong. Tài khoản demo: ${email} / demo1234`);
+  // Tài khoản quản trị để thử trên máy dev — đổi mật khẩu trước khi chạy thật
+  const adminEmail = 'admin@gmail.com';
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      email: adminEmail,
+      displayName: 'Quản trị viên',
+      role: 'ADMIN',
+      passwordHash: await hash('123456a'),
+    },
+  });
+
+  console.log(`✅ Xong. Tài khoản demo: ${email} / demo1234 · Quản trị: ${adminEmail} / 123456a`);
 }
 
 main()

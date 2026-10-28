@@ -1,8 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { Suspense, lazy, useEffect, useRef, type RefObject } from 'react';
+import type { ScenarioConfig } from '@ino/shared';
 import type { RobotState } from '@ino/sim-core';
 
 import { Icon } from '@/components/Icon';
+import { Spinner } from '@/components/ui';
 import type { OutputKind, OutputLine } from './useRunner';
+
+// Three.js khá nặng — chỉ tải khi mở khung mô phỏng, trang danh sách bài làm vẫn nhẹ
+const SimViewport = lazy(() => import('@/features/simulator/SimViewport'));
 
 const KIND_STYLE: Record<OutputKind, string> = {
   print: 'text-ink',
@@ -20,18 +25,28 @@ const KIND_ICON: Record<OutputKind, string> = {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-white px-2.5 py-1.5">
-      <div className="text-[10px] tracking-wide text-ink-3 uppercase">{label}</div>
-      <div className="font-mono text-[13px] font-semibold text-ink">{value}</div>
+    <div className="rounded-md bg-white/90 px-1.5 py-0.5 shadow-sm backdrop-blur">
+      <div className="text-[9px] tracking-wide text-ink-3 uppercase">{label}</div>
+      <div className="font-mono text-[11px] font-semibold text-ink">{value}</div>
     </div>
   );
 }
 
+export interface RunPanelProps {
+  scenario?: ScenarioConfig;
+  /** Trạng thái cập nhật vài lần mỗi giây — cho các con số */
+  state: RobotState;
+  /** Trạng thái cập nhật mỗi khung hình — cho hình 3D */
+  liveState: RefObject<RobotState>;
+  running: boolean;
+  output: OutputLine[];
+  onCaptureReady?: (capture: (() => string | null) | null) => void;
+}
+
 /**
- * Khung bên phải trong lúc chưa có robot ảo 3D (mốc M3).
- * Hiện trạng thái robot bằng số và bảng thông báo của khối "in ra".
+ * Khung bên phải: robot ảo 3D ở trên, bảng thông báo của khối "in ra" ở dưới.
  */
-export function RunPanel({ state, output }: { state: RobotState; output: OutputLine[] }) {
+export function RunPanel({ scenario, state, liveState, running, output, onCaptureReady }: RunPanelProps) {
   const bottom = useRef<HTMLDivElement | null>(null);
 
   // Luôn cuộn xuống dòng mới nhất
@@ -39,32 +54,32 @@ export function RunPanel({ state, output }: { state: RobotState; output: OutputL
     bottom.current?.scrollIntoView({ block: 'end' });
   }, [output.length]);
 
-  const degrees = ((state.heading * 180) / Math.PI) % 360;
+  // Góc trong khoảng -180°…180° cho dễ đọc
+  const degrees = ((((state.heading * 180) / Math.PI + 180) % 360) + 360) % 360 - 180;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-brand-50">
-      <div className="shrink-0 border-b border-brand-100 p-3">
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-ink-2 uppercase">
-          <Icon name="smart_toy" size={15} className="text-brand" />
-          Trạng thái robot
-        </div>
+      <div className="relative min-h-[220px] flex-[3] border-b border-brand-100">
+        <Suspense fallback={<Spinner label="Đang tải sa bàn 3D…" />}>
+          <SimViewport
+            scenario={scenario}
+            state={liveState}
+            running={running}
+            onCaptureReady={onCaptureReady}
+            redrawKey={state}
+          />
+        </Suspense>
 
-        <div className="grid grid-cols-3 gap-1.5">
-          <Stat label="Vị trí X" value={`${state.x.toFixed(2)} m`} />
-          <Stat label="Vị trí Z" value={`${state.z.toFixed(2)} m`} />
-          <Stat label="Góc quay" value={`${degrees.toFixed(0)}°`} />
-          <Stat label="Bánh trái" value={`${state.left}`} />
-          <Stat label="Bánh phải" value={`${state.right}`} />
+        <div className="pointer-events-none absolute bottom-2 left-2 flex flex-wrap gap-1">
+          <Stat label="X" value={`${state.x.toFixed(2)} m`} />
+          <Stat label="Z" value={`${state.z.toFixed(2)} m`} />
+          <Stat label="Góc" value={`${degrees.toFixed(0)}°`} />
+          <Stat label="Bánh T/P" value={`${state.left} / ${state.right}`} />
           <Stat label="Thời gian" value={`${state.time.toFixed(1)} s`} />
         </div>
-
-        <p className="mt-2 flex items-start gap-1 text-[11px] leading-snug text-ink-3">
-          <Icon name="info" size={14} className="mt-px shrink-0" />
-          Hình robot 3D sẽ có ở mốc M3. Hiện tại chỉ hiện số liệu.
-        </p>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-[120px] flex-[2] flex-col">
         <div className="flex shrink-0 items-center gap-1.5 border-b border-brand-100 px-3 py-2 text-[11px] font-bold tracking-wider text-ink-2 uppercase">
           <Icon name="terminal" size={15} className="text-brand" />
           Bảng thông báo

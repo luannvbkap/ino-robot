@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ProgramRunner,
   SimRobot,
+  type RobotSpec,
   type RobotState,
   type RunnerStatus,
   type Speed,
@@ -25,11 +26,29 @@ const REDRAW_EVERY_FRAMES = 6;
 /** Giữ tối đa bấy nhiêu dòng thông báo, tránh chương trình in ra vô tận làm đầy bộ nhớ */
 const MAX_OUTPUT_LINES = 300;
 
-export function useRunner(api: BlocklyApi | null) {
+export interface RunnerSetup {
+  /** Thông số chuyển động của robot, lấy từ file cấu hình */
+  spec?: RobotSpec;
+  /** Vị trí xuất phát, lấy từ kịch bản */
+  start?: Partial<RobotState>;
+}
+
+export function useRunner(api: BlocklyApi | null, { spec, start: startPose }: RunnerSetup = {}) {
+  const startState = useMemo<RobotState>(
+    () => ({ ...EMPTY_STATE, ...startPose }),
+    [startPose?.x, startPose?.z, startPose?.heading], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const [status, setStatus] = useState<RunnerStatus>('idle');
   const [speed, setSpeedState] = useState<Speed>('normal');
-  const [robotState, setRobotState] = useState<RobotState>(EMPTY_STATE);
+  const [robotState, setRobotState] = useState<RobotState>(startState);
   const [output, setOutput] = useState<OutputLine[]>([]);
+
+  /**
+   * Trạng thái mới nhất, cập nhật MỖI khung hình. Khung 3D đọc thẳng từ đây
+   * trong vòng vẽ, không qua state của React để khỏi vẽ lại cả cây 60 lần/giây.
+   */
+  const liveState = useRef<RobotState>(startState);
 
   const runnerRef = useRef<ProgramRunner | null>(null);
   const frameCount = useRef(0);
@@ -49,10 +68,12 @@ export function useRunner(api: BlocklyApi | null) {
 
     runnerRef.current?.stop();
     setOutput([]);
-    setRobotState(EMPTY_STATE);
+    setRobotState(startState);
+    liveState.current = startState;
     frameCount.current = 0;
 
     const robot = new SimRobot({
+      spec,
       onPrint: (text) => addLine('print', text),
       onWarning: (text) => addLine('warning', text),
     });
@@ -61,13 +82,22 @@ export function useRunner(api: BlocklyApi | null) {
       robot,
       code: api.generateJs(),
       speed,
+      start: startState,
       onStatus: (next) => {
+        // Chương trình kết thúc giữa khung hình nên khung cuối không kịp báo về —
+        // lấy trạng thái cuối cùng ở đây, nếu không sẽ hiện "bánh 60/60" dù đã dừng
+        if (next === 'finished' || next === 'error') {
+          const last = robot.getState();
+          liveState.current = last;
+          setRobotState(last);
+        }
         setStatus(next);
         if (next === 'finished') addLine('system', 'Chương trình đã chạy xong.');
       },
       onHighlight: (blockId) => api.highlight(blockId),
       onError: (message) => addLine('error', message),
       onFrame: (state) => {
+        liveState.current = state;
         frameCount.current += 1;
         if (frameCount.current % REDRAW_EVERY_FRAMES === 0) setRobotState({ ...state });
       },
@@ -75,16 +105,24 @@ export function useRunner(api: BlocklyApi | null) {
 
     runnerRef.current = runner;
     runner.start();
-  }, [api, speed, addLine]);
+  }, [api, speed, spec, startState, addLine]);
 
   const pause = useCallback(() => runnerRef.current?.pause(), []);
   const resume = useCallback(() => runnerRef.current?.resume(), []);
 
   const stop = useCallback(() => {
     runnerRef.current?.stop();
-    setRobotState(EMPTY_STATE);
+    setRobotState(startState);
+    liveState.current = startState;
     api?.highlight(null);
-  }, [api]);
+  }, [api, startState]);
+
+  /** Kịch bản vừa nạp xong hoặc đổi kịch bản: đặt robot về chỗ xuất phát mới */
+  useEffect(() => {
+    if (runnerRef.current && runnerRef.current.getStatus() !== 'idle') return;
+    setRobotState(startState);
+    liveState.current = startState;
+  }, [startState]);
 
   const setSpeed = useCallback((next: Speed) => {
     setSpeedState(next);
@@ -98,6 +136,7 @@ export function useRunner(api: BlocklyApi | null) {
     status,
     speed,
     robotState,
+    liveState,
     output,
     isRunning: status === 'running',
     isPaused: status === 'paused',

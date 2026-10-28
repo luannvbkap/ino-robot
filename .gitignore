@@ -18,7 +18,9 @@ giao-dien-mau/
 # tài liệu nội bộ - KHÔNG đưa lên GitHub
 # (ước tính thời gian, nhân lực, phân tích rủi ro pháp lý)
 de-xuat/
-PTTK-*.md
+# mọi tài liệu phân tích thiết kế, viết hoa hay thường, có gạch hay không:
+# PTTK1.md, PTTK-02.md, pttk_03.md, thư mục PTTK/...
+[Pp][Tt][Tt][Kk]*
 *.docx
 *.pptx
 *.xlsx

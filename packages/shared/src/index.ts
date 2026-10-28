@@ -134,11 +134,15 @@ export interface ProjectDetail extends ProjectSummary {
   workspace: unknown;
 }
 
-/* --------------------- Cấu hình robot / kịch bản -------------------- */
+/* --------------------- Cấu hình robot / kịch bản -------------------- *
+ * Mọi toạ độ dùng hệ trục của Three.js, đơn vị mét: Y hướng lên, mặt sàn
+ * là mặt phẳng XZ, tâm sàn ở gốc toạ độ.
+ * --------------------------------------------------------------------- */
 
 export interface SensorConfig {
   id: string;
   type: 'line' | 'ultrasonic';
+  /** Theo hệ toạ độ của robot: đầu robot là +X, bên trái là -Z, gốc nằm trên sàn dưới trục bánh */
   position: [number, number, number];
   maxRange?: number;
 }
@@ -163,7 +167,9 @@ export interface ScenarioConfig {
   id: string;
   name: string;
   ground: string;
+  /** Kích thước sàn theo X và Z, mét */
   size: [number, number];
+  /** `rotation` tính bằng ĐỘ, dương là quay trái; 0 là robot nhìn về +X */
   robotStart: { position: [number, number, number]; rotation: number };
   obstacles: { position: [number, number, number]; size: [number, number, number] }[];
   goal?: { type: string; position: [number, number, number]; radius: number };

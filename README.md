@@ -22,7 +22,7 @@ pnpm install
 # tạo file cấu hình
 cp apps/api/.env.example apps/api/.env
 
-# bật PostgreSQL (cổng 5433 để không đụng Postgres cài sẵn trên máy)
+# bật PostgreSQL (cổng 5434 để không đụng Postgres cài sẵn trên máy)
 pnpm db:up
 
 # tạo bảng trong database
@@ -84,9 +84,9 @@ config/
 | Mốc | Nội dung | Trạng thái |
 |---|---|---|
 | M0 | Khung dự án, đăng nhập, CRUD bài làm | ✅ Xong |
-| M1 | Blockly, 38 khối lệnh, tự động lưu, sinh mã C++ | ✅ Xong |
+| M1 | Blockly, 42 khối lệnh, tự động lưu, sinh mã C++ | ✅ Xong |
 | M2 | Chạy chương trình từng bước, tô sáng khối, tạm dừng, ba mức tốc độ | ✅ Xong |
-| M3 | Viewport 3D, robot di chuyển | Chưa làm |
+| M3 | Sa bàn 3D, mô hình robot, robot chạy theo chương trình, ảnh thu nhỏ bài làm | ✅ Xong |
 | M4 | Cảm biến ảo, hai kịch bản | Chưa làm |
 | M5 | Bài mẫu, hoàn thiện, triển khai | Chưa làm |
 
@@ -95,11 +95,12 @@ config/
 - **Chọn kịch bản khi tạo bài làm** — hiện mọi bài đều mặc định "Dò vạch kẻ" và
   không có chỗ nào đổi, nên thẻ bài làm nào cũng dùng chung một hình minh hoạ.
   Gộp vào **M4** cùng phần cảm biến và sa bàn.
-- **Ảnh chụp thật trên thẻ bài làm** — trường `thumbnail` đã có trong database,
-  chờ **M3** có mô phỏng rồi chụp màn hình workspace thay hình vẽ sẵn.
+- **Ảnh thu nhỏ chỉ có sau lần chạy đầu tiên** — ảnh được chụp từ sa bàn 3D lúc
+  chạy xong hoặc bấm dừng. Bài chưa chạy lần nào vẫn dùng hình vẽ sẵn.
 - **Màu phụ của thương hiệu** — cần hỏi INO đã có bộ màu chưa trước khi chọn.
-- **Hình robot trong khung mô phỏng** — M2 chỉ hiện trạng thái robot bằng số
-  (vị trí, góc quay, tốc độ hai bánh, thời gian). Hình robot 3D thuộc **M3**.
+- **Sa bàn chưa có vạch kẻ và chưa có va chạm** — sàn trắng kẻ ô 10 cm; robot đi
+  xuyên qua vật cản và ra khỏi mép sàn được. Ảnh vạch kẻ, va chạm và phát hiện
+  về đích thuộc **M4**.
 - **Cảm biến đọc giá trị cố định** — dò vạch luôn trả về "không thấy vạch",
   khoảng cách luôn 100 cm, kèm cảnh báo một lần ở bảng thông báo.
   Đọc thật từ sa bàn thuộc **M4**.

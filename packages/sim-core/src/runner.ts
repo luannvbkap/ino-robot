@@ -3,7 +3,7 @@
 // chỉ đường tường minh, nếu không sẽ báo "Could not find a declaration file".
 /// <reference path="./js-interpreter.d.ts" />
 import Interpreter, { type PseudoObject } from 'js-interpreter';
-import { FIXED_DT, SimRobot } from './robot';
+import { FIXED_DT, SimRobot, type RobotCommand } from './robot';
 import { inoMap } from './maths';
 import type { RobotState } from './types';
 
@@ -28,12 +28,25 @@ export type RunnerStatus = 'idle' | 'running' | 'paused' | 'finished' | 'stopped
 
 export type Speed = 'slow' | 'normal' | 'fast';
 
-/** Số bước mô phỏng chạy trong mỗi khung hình, theo tốc độ đã chọn */
-const SIM_STEPS_PER_FRAME: Record<Speed, number> = {
+/** Một giây thật ứng với bao nhiêu giây mô phỏng, theo tốc độ đã chọn */
+const SIM_SPEED: Record<Speed, number> = {
   slow: 0.25,
   normal: 1,
   fast: 4,
 };
+
+/**
+ * Số bước mô phỏng tối đa trong một khung hình (ở tốc độ vừa) — chống
+ * "vòng xoáy tử thần": máy giật, phải bù nhiều bước, càng bù càng giật thêm.
+ * Xem PTTK-02 mục 7.
+ */
+export const MAX_CATCH_UP = 5;
+
+/** Khung hình dài hơn mức này (chuyển tab, máy đơ) chỉ tính bằng mức này */
+const MAX_FRAME_SECONDS = 0.25;
+
+/** Sai số dấu phẩy động khi cộng dồn 1/60 nhiều lần */
+const EPSILON = 1e-9;
 
 /**
  * Lệnh của robot cần chờ, kèm SỐ THAM SỐ.
@@ -42,7 +55,11 @@ const SIM_STEPS_PER_FRAME: Record<Speed, number> = {
  * trừ đi 1 (vì tham số cuối là callback) để biết arity. Dùng tham số rest thì
  * `fn.length` bằng 0, thành -1, và trình thông dịch vỡ với "Invalid array length".
  */
-const ASYNC_METHODS: Record<string, 0 | 1 | 2> = {
+const ASYNC_METHODS: Record<RobotCommand, 0 | 1 | 2> = {
+  forwardCm: 2,
+  backwardCm: 2,
+  turnLeftDeg: 2,
+  turnRightDeg: 2,
   forward: 2,
   backward: 2,
   turnLeftFor: 2,
@@ -66,10 +83,13 @@ const SYNC_METHODS: Record<string, 0 | 1> = {
 
 type AnyFn = (...args: never[]) => unknown;
 
-/** Bọc lệnh chờ được, khai đúng số tham số để trình thông dịch tính arity đúng */
-function wrapAsync(fn: AnyFn, arity: 0 | 1 | 2) {
+/**
+ * Bọc lệnh chờ được, khai đúng số tham số để trình thông dịch tính arity đúng.
+ * Robot gọi `callback` đồng bộ khi xong lệnh — xem `SimRobot.execute`.
+ */
+function wrapAsync(robot: SimRobot, command: RobotCommand, arity: 0 | 1 | 2) {
   const call = (args: unknown[], callback: () => void) => {
-    void (fn(...(args as never[])) as Promise<void>).then(() => callback());
+    robot.execute(command, args.map(Number), () => callback());
   };
 
   if (arity === 0) return (callback: () => void) => call([], callback);
@@ -83,14 +103,18 @@ function wrapSync(fn: AnyFn, arity: 0 | 1) {
   return (a: unknown) => fn(...([a] as never[]));
 }
 
-/** Cho phép thay bộ hẹn khung hình để kiểm thử không cần trình duyệt */
+/**
+ * Cho phép thay bộ hẹn khung hình để kiểm thử không cần trình duyệt.
+ * `now` là mốc thời gian của khung hình (mili giây). Không truyền thì mỗi
+ * khung hình được tính là đúng một bước mô phỏng.
+ */
 export interface Scheduler {
-  request(callback: () => void): number;
+  request(callback: (now?: number) => void): number;
   cancel(handle: number): void;
 }
 
 export const rafScheduler: Scheduler = {
-  request: (cb) => requestAnimationFrame(cb),
+  request: (cb) => requestAnimationFrame((now) => cb(now)),
   cancel: (h) => cancelAnimationFrame(h),
 };
 
@@ -111,6 +135,8 @@ export interface RunnerOptions {
   /** Mã JavaScript sinh ra từ khối lệnh */
   code: string;
   speed?: Speed;
+  /** Vị trí xuất phát, lấy từ `robotStart` của kịch bản */
+  start?: Partial<RobotState>;
   scheduler?: Scheduler;
   /** Hạ thấp để kiểm thử — bản chạy thật dùng DEFAULT_LIMITS */
   limits?: Partial<RunnerLimits>;
@@ -133,11 +159,14 @@ export class ProgramRunner {
   private handle: number | null = null;
   private status: RunnerStatus = 'idle';
   private totalSteps = 0;
-  /** Phần bước mô phỏng còn dư khi chạy chậm */
-  private simDebt = 0;
+  /** Thời gian mô phỏng đã dồn lại mà chưa đủ một bước, giây */
+  private accumulator = 0;
+  /** Mốc thời gian của khung hình trước, mili giây */
+  private lastFrameAt: number | null = null;
 
   private readonly robot: SimRobot;
   private readonly code: string;
+  private readonly startPose?: Partial<RobotState>;
   private readonly scheduler: Scheduler;
   private readonly onHighlight?: (blockId: string | null) => void;
   private readonly onStatus?: (status: RunnerStatus) => void;
@@ -151,6 +180,7 @@ export class ProgramRunner {
     this.code = options.code;
     this.limits = { ...DEFAULT_LIMITS, ...options.limits };
     this.speed = options.speed ?? 'normal';
+    this.startPose = options.start;
     this.scheduler = options.scheduler ?? rafScheduler;
     this.onHighlight = options.onHighlight;
     this.onStatus = options.onStatus;
@@ -170,9 +200,10 @@ export class ProgramRunner {
 
   start() {
     this.stop();
-    this.robot.reset();
+    this.robot.reset(this.startPose);
     this.totalSteps = 0;
-    this.simDebt = 0;
+    this.accumulator = 0;
+    this.lastFrameAt = null;
 
     try {
       this.interpreter = new Interpreter(this.code, (interpreter, globalObject) =>
@@ -195,6 +226,8 @@ export class ProgramRunner {
 
   resume() {
     if (this.status !== 'paused') return;
+    // Không tính khoảng thời gian tạm dừng vào khung hình đầu tiên sau đó
+    this.lastFrameAt = null;
     this.setStatus('running');
     this.scheduleFrame();
   }
@@ -202,7 +235,9 @@ export class ProgramRunner {
   stop() {
     this.cancelFrame();
     this.interpreter = null;
-    this.robot.reset();
+    // Nhắc trước khi đặt lại robot, vì đặt lại là quên hết lệnh đã chạy
+    if (this.status === 'running' || this.status === 'paused') this.robot.reportUnusedMoves();
+    this.robot.reset(this.startPose);
     this.onHighlight?.(null);
     if (this.status !== 'idle') this.setStatus('stopped');
   }
@@ -210,9 +245,9 @@ export class ProgramRunner {
   /* ----------------------------- Vòng lặp chạy --------------------------- */
 
   private scheduleFrame() {
-    this.handle = this.scheduler.request(() => {
+    this.handle = this.scheduler.request((now) => {
       this.handle = null;
-      this.frame();
+      this.frame(now);
     });
   }
 
@@ -223,13 +258,39 @@ export class ProgramRunner {
     }
   }
 
-  /** Một khung hình: chạy một ít lệnh rồi tiến mô phỏng */
-  private frame() {
+  /**
+   * Một khung hình. Chương trình và mô phỏng chạy XEN KẼ: chạy chương trình
+   * tới khi nó phải chờ (đợi, đi thẳng N giây, nhường bước), rồi mới tiến một
+   * bước mô phỏng, rồi lại chạy chương trình…
+   *
+   * Nhờ vậy giữa hai bước mô phỏng, chương trình luôn đã làm xong đúng những
+   * lệnh nó phải làm — bất kể một khung hình có 0, 1 hay 4 bước. Chạy chậm,
+   * vừa hay nhanh, màn 60Hz hay 144Hz đều ra CÙNG một quỹ đạo.
+   */
+  private frame(now?: number) {
     if (this.status !== 'running' || !this.interpreter) return;
+
+    // Khung hình đầu tiên (hoặc khi không biết giờ) tính là đúng một bước
+    const elapsed =
+      now !== undefined && this.lastFrameAt !== null ? (now - this.lastFrameAt) / 1000 : FIXED_DT;
+    this.lastFrameAt = now ?? null;
 
     try {
       if (!this.runSteps()) return;
-      if (!this.advanceSimulation()) return;
+
+      const steps = this.takeSimSteps(elapsed);
+      for (let i = 0; i < steps; i++) {
+        this.robot.step(FIXED_DT);
+        if (this.robot.getState().time > this.limits.maxSimSeconds) {
+          this.fail(
+            `Robot đã chạy quá ${this.limits.maxSimSeconds} giây mà chương trình chưa kết thúc ` +
+              'nên phải dừng lại.',
+          );
+          return;
+        }
+        if (!this.runSteps()) return;
+      }
+
       this.onFrame?.(this.robot.getState());
     } catch (error) {
       this.fail(`Chương trình gặp lỗi: ${(error as Error).message}`);
@@ -239,9 +300,14 @@ export class ProgramRunner {
     this.scheduleFrame();
   }
 
-  /** Chạy tối đa MAX_STEPS_PER_FRAME lệnh. Trả về false nếu đã kết thúc. */
+  /**
+   * Chạy chương trình tới khi nó đứng chờ robot, tối đa MAX_STEPS_PER_FRAME
+   * lệnh mỗi lượt — vòng lặp chỉ toàn phép tính thì nhường lại cho giao diện.
+   * Trả về false nếu chương trình đã kết thúc hoặc bị dừng.
+   */
   private runSteps(): boolean {
     for (let i = 0; i < this.limits.maxStepsPerFrame; i++) {
+      if (this.interpreter!.paused_) return true;
       if (!this.interpreter!.step()) {
         this.finish();
         return false;
@@ -259,27 +325,32 @@ export class ProgramRunner {
     return true;
   }
 
-  /** Tiến mô phỏng theo tốc độ đã chọn. Trả về false nếu phải dừng. */
-  private advanceSimulation(): boolean {
-    this.simDebt += SIM_STEPS_PER_FRAME[this.speed];
+  /**
+   * Số bước mô phỏng phải chạy trong khung hình này, tính theo thời gian thật
+   * đã trôi nhân với tốc độ đã chọn. Mỗi bước luôn đúng FIXED_DT.
+   */
+  private takeSimSteps(elapsed: number): number {
+    const scale = SIM_SPEED[this.speed];
+    this.accumulator += Math.min(Math.max(elapsed, 0), MAX_FRAME_SECONDS) * scale;
 
-    while (this.simDebt >= 1) {
-      this.robot.step(FIXED_DT);
-      this.simDebt -= 1;
+    const maxSteps = Math.ceil(MAX_CATCH_UP * Math.max(1, scale));
+    let steps = 0;
 
-      if (this.robot.getState().time > this.limits.maxSimSeconds) {
-        this.fail(
-          `Robot đã chạy quá ${this.limits.maxSimSeconds} giây mà chương trình chưa kết thúc ` +
-            'nên phải dừng lại.',
-        );
-        return false;
+    while (this.accumulator >= FIXED_DT - EPSILON) {
+      if (steps >= maxSteps) {
+        // Máy không theo kịp — bỏ phần nợ thay vì cố bù, robot chỉ chạy chậm lại
+        this.accumulator = 0;
+        break;
       }
+      this.accumulator -= FIXED_DT;
+      steps += 1;
     }
-    return true;
+    return steps;
   }
 
   private finish() {
     this.cancelFrame();
+    this.robot.reportUnusedMoves();
     this.onHighlight?.(null);
     this.setStatus('finished');
   }
@@ -287,6 +358,7 @@ export class ProgramRunner {
   private fail(message: string) {
     this.cancelFrame();
     this.interpreter = null;
+    this.robot.reportUnusedMoves();
     this.onHighlight?.(null);
     this.setStatus('error');
     this.onError?.(message);
@@ -320,11 +392,10 @@ export class ProgramRunner {
     interpreter.setProperty(globalObject, 'robot', robotObject);
 
     for (const [name, arity] of Object.entries(ASYNC_METHODS)) {
-      const method = robot[name]!.bind(this.robot);
       interpreter.setProperty(
         robotObject,
         name,
-        interpreter.createAsyncFunction(wrapAsync(method, arity) as never),
+        interpreter.createAsyncFunction(wrapAsync(this.robot, name as RobotCommand, arity) as never),
       );
     }
 

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
@@ -18,6 +18,7 @@ import { useRunner } from '@/features/run/useRunner';
 import { RunPanel } from '@/features/run/RunPanel';
 import { CodePanel, type CodeTheme } from '@/features/blockly/CodePanel';
 import { BlocklyDialogs } from '@/features/blockly/BlocklyDialogs';
+import { specOf, startPoseOf } from '@/features/simulator/scenario';
 
 /** Nhóm khối lệnh — màu và biểu tượng lấy từ thiết kế */
 const CATEGORIES = [
@@ -63,7 +64,6 @@ export default function EditorPage() {
   const [cpp, setCpp] = useState('');
   const [blockCount, setBlockCount] = useState(0);
   const [blocklyApi, setBlocklyApi] = useState<BlocklyApi | null>(null);
-  const run = useRunner(blocklyApi);
   const wsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstChange = useRef(true);
 
@@ -75,6 +75,45 @@ export default function EditorPage() {
     queryFn: () => api.projects.get(id),
     enabled: Boolean(id),
   });
+
+  /** Cấu hình robot và kịch bản là file tĩnh trên máy chủ, tải một lần là đủ */
+  const robots = useQuery({ queryKey: ['robots'], queryFn: api.robots, staleTime: Infinity });
+  const scenarios = useQuery({ queryKey: ['scenarios'], queryFn: api.scenarios, staleTime: Infinity });
+  const robot = robots.data?.robots.find((r) => r.id === data?.project.robotId);
+  const scenario = scenarios.data?.scenarios.find((s) => s.id === data?.project.scenarioId);
+
+  const setup = useMemo(() => ({ spec: specOf(robot), start: startPoseOf(scenario) }), [robot, scenario]);
+  const run = useRunner(blocklyApi, setup);
+
+  /* ---------------- Ảnh thu nhỏ cho thẻ bài làm ---------------- */
+
+  const qc = useQueryClient();
+  const capture = useRef<(() => string | null) | null>(null);
+  const onCaptureReady = useCallback((fn: (() => string | null) | null) => {
+    capture.current = fn;
+  }, []);
+
+  /** Chụp sa bàn lúc robot vừa chạy xong rồi lưu làm ảnh của bài làm */
+  const saveThumbnail = useCallback(async () => {
+    const image = capture.current?.();
+    if (!image) return;
+    try {
+      await api.projects.update(id, { thumbnail: image });
+      void qc.invalidateQueries({ queryKey: ['projects'] });
+    } catch {
+      // Ảnh thu nhỏ chỉ để trang trí — lưu không được thì lần chạy sau lưu lại
+    }
+  }, [id, qc]);
+
+  useEffect(() => {
+    if (run.status === 'finished' || run.status === 'error') void saveThumbnail();
+  }, [run.status, saveThumbnail]);
+
+  /** Bấm dừng: chụp trước, vì dừng xong robot về lại chỗ xuất phát */
+  function onStop() {
+    void saveThumbnail();
+    run.stop();
+  }
 
   useEffect(() => {
     if (data) setTitle(data.project.name);
@@ -145,7 +184,8 @@ export default function EditorPage() {
     );
   }
 
-  const scenarioLabel = data.project.scenarioId === 'line-follow' ? 'Dò vạch kẻ' : 'Tránh vật cản';
+  const scenarioLabel =
+    scenario?.name ?? (data.project.scenarioId === 'line-follow' ? 'Dò vạch kẻ' : 'Tránh vật cản');
 
   return (
     <div className="flex h-full flex-col overflow-hidden select-none">
@@ -308,7 +348,7 @@ export default function EditorPage() {
               </button>
 
               <button
-                onClick={run.stop}
+                onClick={onStop}
                 disabled={run.status === 'idle'}
                 title="Dừng và đưa robot về vị trí xuất phát"
                 className="flex h-8 w-9 cursor-pointer items-center justify-center rounded-md text-danger transition-colors hover:bg-danger-bg/60 disabled:cursor-not-allowed disabled:text-ink-3/40 disabled:hover:bg-transparent"
@@ -451,7 +491,14 @@ export default function EditorPage() {
                       onToggleTheme={() => setLayout((l) => ({ ...l, codeDark: !l.codeDark }))}
                     />
                   ) : (
-                    <RunPanel state={run.robotState} output={run.output} />
+                    <RunPanel
+                      scenario={scenario}
+                      state={run.robotState}
+                      liveState={run.liveState}
+                      running={run.isRunning}
+                      output={run.output}
+                      onCaptureReady={onCaptureReady}
+                    />
                   )}
                 </aside>
               </>

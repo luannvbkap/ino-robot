@@ -6,9 +6,9 @@
   "wheelBase": 0.12,
   "maxSpeed": 0.3,
   "sensors": [
-    { "id": "lineL", "type": "line", "position": [-0.02, 0.0, 0.06] },
-    { "id": "lineR", "type": "line", "position": [0.02, 0.0, 0.06] },
-    { "id": "dist", "type": "ultrasonic", "position": [0.0, 0.03, 0.07], "maxRange": 2.0 }
+    { "id": "lineL", "type": "line", "position": [0.06, 0.005, -0.02] },
+    { "id": "lineR", "type": "line", "position": [0.06, 0.005, 0.02] },
+    { "id": "dist", "type": "ultrasonic", "position": [0.07, 0.03, 0.0], "maxRange": 2.0 }
   ],
   "blocks": ["motion", "sensors", "control", "logic", "math", "variables", "serial"]
 }

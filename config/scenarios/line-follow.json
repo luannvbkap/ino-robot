@@ -4,7 +4,7 @@
   "name": "Dò vạch kẻ",
   "ground": "/scenarios/line-follow.png",
   "size": [2.0, 2.0],
-  "robotStart": { "position": [0.0, 0.0, 0.0], "rotation": 0 },
+  "robotStart": { "position": [-0.7, 0.0, 0.0], "rotation": 0 },
   "obstacles": [],
-  "goal": { "type": "reachPoint", "position": [1.5, 0.0, 1.5], "radius": 0.1 }
+  "goal": { "type": "reachPoint", "position": [0.7, 0.0, 0.0], "radius": 0.1 }
 }
